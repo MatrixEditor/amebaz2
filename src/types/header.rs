@@ -570,6 +570,21 @@ impl SectionHeader {
     pub fn xip_key_iv_valid(&self) -> bool {
         return is_valid_key!(self.xip_key) && is_valid_key!(self.xip_iv);
     }
+
+    /// Retrieves the XIP key.
+    pub fn get_xip_key(&self) -> &[u8; 16] {
+        &self.xip_key
+    }
+
+    /// Retrieves the XIP IV.
+    pub fn get_xip_iv(&self) -> &[u8; 16] {
+        &self.xip_iv
+    }
+
+    /// Retrieves the valid pattern.
+    pub fn get_valid_pattern(&self) -> &[u8; 8] {
+        &self.valid_pattern
+    }
 }
 
 // -- entry header --

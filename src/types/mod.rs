@@ -4,6 +4,7 @@ use crate::error::Error;
 
 pub mod enums;
 pub mod header;
+pub mod section;
 
 /// Checks if a given key is valid.
 ///
