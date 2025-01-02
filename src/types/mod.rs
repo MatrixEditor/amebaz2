@@ -3,6 +3,33 @@ use std::io;
 use crate::error::Error;
 
 pub mod enums;
+pub mod header;
+
+/// Checks if a given key is valid.
+///
+/// # Parameters
+/// - `$key`: The key to check, which is expected to be an iterable collection (e.g., a slice or array).
+///
+/// # Returns
+/// - `true` if all bytes in the key are not equal to `0xFF`.
+/// - `false` if any byte in the key is equal to `0xFF`.
+///
+/// # Example
+/// ```rust
+/// let key = [0x01, 0x02, 0x03, 0x04, 0x05];
+/// assert!(is_valid_key!(key)); // All bytes are non-0xFF, so it's valid.
+///
+/// let invalid_key = [0xFF, 0xFF, 0xFF, 0xFF];
+/// assert!(!is_valid_key!(invalid_key)); // Contains only 0xFF bytes, so it's invalid.
+/// ```
+#[macro_export]
+macro_rules! is_valid_key {
+    ($key:expr) => {
+        // Iterates over the key and checks if any byte is equal to 0xFF.
+        $key.iter().all(|&x| x != 0xFF)
+    };
+}
+
 
 /// A trait for types that can be deserialized from a stream.
 ///
