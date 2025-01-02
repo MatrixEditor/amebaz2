@@ -4,7 +4,10 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::{error::Error, is_valid_key};
 
-use super::{enums::ImageType, BinarySize, FromStream, ToStream};
+use super::{
+    enums::{ImageType, SectionType, XipPageRemapSize},
+    BinarySize, FromStream, ToStream,
+};
 
 /// A struct representing the key block with two public keys:
 /// * an encryption public key and
@@ -337,5 +340,234 @@ impl ImageHeader {
     /// A reference to the `user_key2` array (32 bytes).
     pub fn get_user_key2(&self) -> &[u8; 32] {
         &self.user_key2
+    }
+}
+
+// --- Sub-Image Header ---
+// Layout
+//          +---+---+---+---+----+----+----+---+----------------------+-----------------+-----------------+------------------+----+----+----+----+
+//          | 0 | 1 | 2 | 3 | 4  | 5  | 6  | 7 | 8                    | 9               | 10              | 11               | 12 | 13 | 14 | 15 |
+// +========+===+===+===+===+====+====+====+===+======================+=================+=================+==================+====+====+====+====+
+// | 0x00   |  length: u32  | next_offset: u32 |     sec_type: u8     | sce_enabled: u8 | xip_pg_size: u8 | xip_sec_size: u8 |                   |
+// +--------+---------------+------------------+----------------------+-----------------+-----------------+------------------+-------------------+
+// | 0x10   |        validpat: bytes[8]        | xip_key_iv_valid: u8 |                                                                          |
+// +--------+----------------------------------+----------------------+--------------------------------------------------------------------------+
+// | 0x20   |                                                         xip_key: bytes[16]                                                         |
+// +--------+------------------------------------------------------------------------------------------------------------------------------------+
+// | 0x30   |                                                         xip_iv: bytes[16]                                                          |
+// +--------+------------------------------------------------------------------------------------------------------------------------------------+
+// | 0x40   |                                                        alignment: bytes[32]                                                        |
+// +--------+------------------------------------------------------------------------------------------------------------------------------------+
+// size: 0x60 = 96 bytes
+
+/// Represents the header of a section in a binary image.
+///
+/// The `SectionHeader` struct contains information about the section's length, type,
+/// offset to the next section, as well as details about encryption, remapping, and
+/// validation. The struct is designed to handle sections in a memory or file layout
+/// where the sections could represent different types of data, such as executable code
+/// (XIP), memory regions (DTCM, ITCM), and more. Fields like `xip_page_size`, `xip_key`,
+/// and `xip_iv` are especially relevant when dealing with Execute-In-Place (XIP) sections.
+#[derive(Debug)]
+pub struct SectionHeader {
+    /// The length of the section in bytes.
+    ///
+    /// This field stores the total size of the section, which may include data and metadata.
+    /// The exact meaning and content depend on the section type (`sect_type`).
+    pub length: u32,
+
+    /// Offset to the next section.
+    ///
+    /// This field indicates the position of the next section in memory. A value of `0xFFFF_FFFF`
+    /// indicates that this is the last section, and no further sections exist.
+    pub next_offset: u32,
+
+    /// The type of the current section.
+    pub sect_type: SectionType,
+
+    /// Indicates whether Secure Copy Engine (SCE) is enabled for this section.
+    pub sce_enabled: bool,
+
+    /// XIP (Execute-In-Place) page size and remapping setting.
+    ///
+    /// This field indicates the page size used for remapping during XIP operations. The value is an
+    /// integer representing one of three possible values: 0 (16K), 1 (32K), and 2 (64K).
+    pub xip_page_size: XipPageRemapSize,
+
+    /// Block size for XIP remapping.
+    ///
+    /// This field defines the block size used for XIP remapping, typically represented in bytes.
+    /// The default value is `0`, which means that remapping block size is not defined.
+    pub xip_block_size: u8,
+
+    /// A valid pattern used to verify the integrity of the section header.
+    valid_pattern: [u8; 8],
+
+    /// The encryption key used for XIP operations.
+    ///
+    /// This is a 16-byte key used during the XIP process. If encryption is enabled for the section,
+    /// this key is used for decryption. The default value is an array of `0xFF` bytes, indicating an
+    /// invalid key by default.
+    xip_key: [u8; 16],
+
+    /// The initialization vector (IV) used for XIP encryption.
+    ///
+    /// This is a 16-byte initialization vector (IV) used in conjunction with the `xip_key` during XIP
+    /// encryption operations. As with the key, it is initialized to an invalid value of `0xFF` bytes.
+    xip_iv: [u8; 16],
+}
+
+impl BinarySize for SectionHeader {
+    /// Returns the binary size (in bytes) of the `SectionHeader` struct.
+    ///
+    /// # Returns
+    /// Returns the binary size as a constant `usize` value, which is `0x60` (96 bytes).
+    fn binary_size() -> usize {
+        return 0x60;
+    }
+}
+
+impl Default for SectionHeader {
+    /// Returns the default `SectionHeader` instance with predefined values.
+    ///
+    /// - `length` set to `0`, representing an empty section.
+    /// - `next_offset` set to `0xFFFF_FFFF`, which indicates the absence of a next section.
+    /// - `sect_type` set to `SectionType::XIP`, as a default section type.
+    /// - `sce_enabled` set to `false` (assuming encryption is not enabled by default).
+    /// - `xip_page_size` set to `XipPageRemapSize::_16K`, the smallest page size for XIP remapping.
+    /// - `xip_block_size` set to `0`, indicating no block size set.
+    /// - `valid_pattern` set to a default validation pattern of increasing values.
+    /// - `xip_key` and `xip_iv` both set to `0xFF`, representing uninitialized keys/IV.
+    ///
+    /// # Returns
+    /// Returns a `SectionHeader` with the default values.
+    fn default() -> SectionHeader {
+        return SectionHeader {
+            length: 0,
+            next_offset: 0xFFFF_FFFF, // make last as default
+            sect_type: SectionType::XIP,
+            sce_enabled: false, // encrypted currently not supported
+            xip_page_size: XipPageRemapSize::_16K,
+            xip_block_size: 0,
+            valid_pattern: [0, 1, 2, 3, 4, 5, 6, 7],
+            xip_key: [0xFF; 16],
+            xip_iv: [0xFF; 16],
+        };
+    }
+}
+
+impl FromStream for SectionHeader {
+    /// Reads the `SectionHeader` struct from a stream.
+    ///
+    /// # Error Handling
+    /// This method may return an error if there is an issue with reading from the stream or if
+    /// an invalid value is encountered during deserialization (e.g., an invalid enum value for `sect_type`
+    /// or `xip_page_size`). Any errors encountered during reading from the stream will be propagated as an `Error`.
+    ///
+    /// # Returns
+    /// - `Ok(())` if the `SectionHeader` was successfully read from the stream.
+    /// - `Err(Error)` if there was an issue reading from the stream or an invalid value was encountered.
+    ///
+    /// # Panics
+    /// This function assumes that the binary data is well-formed and follows the expected format. If
+    /// the format is incorrect or the stream is malformed, this function will return an error instead of
+    /// panicking. However, it is still important to handle errors appropriately in calling code.
+    fn read_from<R>(&mut self, reader: &mut R) -> Result<(), Error>
+    where
+        R: std::io::Read + std::io::Seek,
+    {
+        self.length = reader.read_u32::<LittleEndian>()?;
+        self.next_offset = reader.read_u32::<LittleEndian>()?;
+        self.sect_type = SectionType::try_from(reader.read_u8()?)?;
+        self.sce_enabled = reader.read_u8()? != 0;
+        self.xip_page_size = XipPageRemapSize::try_from(reader.read_u8()?)?;
+        self.xip_block_size = reader.read_u8()?;
+
+        reader.seek(io::SeekFrom::Current(4))?;
+        reader.read_exact(&mut self.valid_pattern)?;
+
+        let sce_key_iv_valid = reader.read_u8()? & 0b01 == 1;
+
+        reader.seek(io::SeekFrom::Current(7))?;
+
+        if sce_key_iv_valid {
+            reader.read_exact(&mut self.xip_key)?;
+            reader.read_exact(&mut self.xip_iv)?;
+            // Align to 96 bytes (by skipping 32 bytes)
+            reader.seek(io::SeekFrom::Current(32))?;
+        } else {
+            // Align to 96 bytes by skipping 64 bytes if no key/IV is present
+            reader.seek(io::SeekFrom::Current(64))?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ToStream for SectionHeader {
+    /// Serializes the `SectionHeader` struct to a stream.
+    ///
+    /// # Parameters
+    /// - `writer`: A mutable reference to a type that implements the `std::io::Write` trait. The data will
+    ///   be written to this stream.
+    ///
+    /// # Returns
+    /// - `Ok(())`: If the data is written successfully.
+    /// - `Err(Error)`: If there is an issue writing the data to the stream.
+    fn write_to<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: io::Write + io::Seek,
+    {
+        writer.write_u32::<LittleEndian>(self.length)?;
+        writer.write_u32::<LittleEndian>(self.next_offset)?;
+        writer.write_u8(self.sect_type as u8)?;
+        writer.write_u8(self.sce_enabled as u8)?;
+        writer.write_u8(self.xip_page_size as u8)?;
+        writer.write_u8(self.xip_block_size)?;
+
+        writer.write_all(&[0xFF; 4])?;
+        writer.write_all(&self.valid_pattern)?;
+        writer.write_u8(self.xip_key_iv_valid() as u8)?;
+        writer.write_all(&[0xFF; 7])?;
+
+        writer.write_all(&self.xip_key)?;
+        writer.write_all(&self.xip_iv)?;
+        Ok(())
+    }
+}
+
+impl SectionHeader {
+    // ------------------------------------------------------------------------------------
+    // instance methods
+    // ------------------------------------------------------------------------------------
+
+    /// Checks if the section has a next section.
+    ///
+    /// This method checks if the `next_offset` field of the `SectionHeader` is set to the special
+    /// value `0xFFFF_FFFF`, which indicates that there is no next section. If `next_offset` is
+    /// different from this value, it implies that there is a subsequent section, and the method
+    /// returns `true`. Otherwise, it returns `false`, indicating this is the last section.
+    ///
+    /// # Returns
+    /// - `true` if the section has a next section (i.e., `next_offset` is not `0xFFFF_FFFF`).
+    /// - `false` if this is the last section (i.e., `next_offset` is `0xFFFF_FFFF`).
+    pub fn has_next(&self) -> bool {
+        return self.next_offset != 0xFFFF_FFFF;
+    }
+
+    /// Checks if both the `xip_key` and `xip_iv` fields are valid.
+    ///
+    /// This method uses the `is_valid_key!` macro to check the validity of both the `xip_key`
+    /// and `xip_iv` fields. It returns `true` if both fields are valid (i.e., they do not consist
+    /// entirely of `0xFF` bytes). If either field is invalid, it returns `false`.
+    ///
+    /// This method is typically used to determine if the section is encrypted and can be used
+    /// for cryptographic operations.
+    ///
+    /// # Returns
+    /// - `true` if both `xip_key` and `xip_iv` are valid.
+    /// - `false` if either `xip_key` or `xip_iv` is invalid.
+    pub fn xip_key_iv_valid(&self) -> bool {
+        return is_valid_key!(self.xip_key) && is_valid_key!(self.xip_iv);
     }
 }
