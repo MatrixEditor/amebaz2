@@ -571,3 +571,116 @@ impl SectionHeader {
         return is_valid_key!(self.xip_key) && is_valid_key!(self.xip_iv);
     }
 }
+
+// -- entry header --
+// Layout recovered from
+//  - entry_header_t *_create_entry_header(uint length, uint load_address, uint entry_address)
+//
+//          +---+---+---+---+----+----+----+----+----+----+-----+----+----+----+----+----+
+//          | 0 | 1 | 2 | 3 | 4  | 5  | 6  | 7  | 8  | 9  | 10  | 11 | 12 | 13 | 14 | 15 |
+// +========+===+===+===+===+====+====+====+====+====+====+=====+====+====+====+====+====+
+// | 0x00   |  length: u32  | load_address: u32 | entry_address: u32 |                   |
+// +--------+---------------+-------------------+--------------------+-------------------+
+// | 0x10   |                                                                            |
+// +--------+----------------------------------------------------------------------------+
+// size = 0x20
+
+/// `EntryHeader` represents the header of a specific entry within a binary image.
+/// It includes metadata about the entry, such as its length, load address, and entry point.
+///
+/// This structure is used to describe a segment or block of data that is loaded into memory
+/// at a specified address and contains an entry point that the system can use to jump to
+/// the start of execution.
+///
+/// Fields:
+/// - `length`: The length of the entry in bytes. This defines how much memory the entry occupies.
+/// - `load_address`: The memory address at which the entry is loaded into the system's memory space.
+/// - `entry_address`: The address to which control is transferred when the entry is executed.
+///   By default, it's set to `0xFFFF_FFFF` (None), which indicates an invalid entry address.
+#[derive(Debug)]
+pub struct EntryHeader {
+    /// The length of the entry in bytes.
+    pub length: u32,
+
+    /// The load address in memory where the entry will be loaded.
+    pub load_address: u32,
+
+    /// The entry address, the address to which the system will jump to start execution.
+    /// Defaults to `0xFFFF_FFFF` (None), indicating an invalid address.
+    pub entry_address: Option<u32>,
+}
+
+impl BinarySize for EntryHeader {
+    /// Returns the binary size of the `EntryHeader` struct in bytes.
+    ///
+    /// # Returns
+    /// - `0x20`: The size of the `EntryHeader` struct in bytes.
+    fn binary_size() -> usize {
+        return 0x20;
+    }
+}
+
+impl Default for EntryHeader {
+    /// Returns the default values for the `EntryHeader` struct.
+    ///
+    /// The default values are:
+    /// - `length`: `0` (indicating no data or length of the entry).
+    /// - `load_address`: `0` (indicating the entry is not loaded anywhere).
+    /// - `entry_address`: `0xFFFF_FFFF` (None) (invalid entry address, typically indicating no valid entry).
+    ///
+    /// # Returns
+    /// - `EntryHeader`: A struct with default values.
+    fn default() -> EntryHeader {
+        return EntryHeader {
+            length: 0,
+            load_address: 0,
+            entry_address: None,
+        };
+    }
+}
+
+impl FromStream for EntryHeader {
+    /// Reads an `EntryHeader` from the provided reader (e.g., a file or memory buffer).
+    ///
+    /// # Arguments
+    /// - `reader`: A mutable reference to an object that implements `Read` and `Seek` (e.g., a file or buffer).
+    ///
+    /// # Returns
+    /// - `Ok(())`: If the deserialization is successful.
+    /// - `Err(Error)`: If there is an error reading from the stream, such as an unexpected end of data.
+    fn read_from<R>(&mut self, reader: &mut R) -> Result<(), Error>
+    where
+        R: std::io::Read + std::io::Seek,
+    {
+        self.length = reader.read_u32::<LittleEndian>()?;
+        self.load_address = reader.read_u32::<LittleEndian>()?;
+        self.entry_address = match reader.read_u32::<LittleEndian>()? {
+            0xFFFF_FFFF => None,
+            address => Some(address),
+        };
+        reader.seek(io::SeekFrom::Current(20))?;
+        Ok(())
+    }
+}
+
+impl ToStream for EntryHeader {
+    /// Serializes the `EntryHeader` struct to a stream.
+    ///
+    /// # Parameters
+    /// - `writer`: A mutable reference to a type that implements the `std::io::Write` trait. The data will
+    ///   be written to this stream.
+    ///
+    /// # Returns
+    /// - `Ok(())`: If the data is written successfully.
+    /// - `Err(Error)`: If there is an issue writing the data to the stream.
+    fn write_to<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: io::Write + io::Seek,
+    {
+        writer.write_u32::<LittleEndian>(self.length)?;
+        writer.write_u32::<LittleEndian>(self.load_address)?;
+        writer.write_u32::<LittleEndian>(self.entry_address.unwrap_or(0xFFFF_FFFF))?;
+        writer.write_all(&[0xFF; 20])?;
+        Ok(())
+    }
+}
