@@ -1,5 +1,5 @@
 use super::{enums::*, BinarySize, FromStream, KeyRefType, KeyType, ToStream};
-use crate::{error::Error, is_valid_key, read_padding, write_padding};
+use crate::{error::Error, is_valid_key, read_padding, write_padding, util::write_fill};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 

@@ -11,7 +11,7 @@ use crate::{
         header::{ImageHeader, KeyBlock},
         BinarySize, FromStream, KeyRefType, KeyType, ToStream,
     },
-    util::hmac_sha256,
+    util::{hmac_sha256, write_fill},
     write_key, write_padding,
 };
 
@@ -520,11 +520,9 @@ impl PartitionTableImage {
         reader.read_exact(&mut buffer)?;
         return Ok(hmac_sha256(key, &buffer)?.to_vec());
     }
-
 }
 
-impl AsImage for PartitionTableImage
-{
+impl AsImage for PartitionTableImage {
     /// Computes the segment size for the partition table image.
     ///
     /// The segment size includes the sizes of the keyblock, header, partition table records,
@@ -542,7 +540,7 @@ impl AsImage for PartitionTableImage
         return new_size + (0x20 - (new_size % 0x20));
     }
 
-     /// Computes the signature for the partition table image.
+    /// Computes the signature for the partition table image.
     ///
     /// This method generates the HMAC SHA-256 signature for the image using the provided key.
     ///

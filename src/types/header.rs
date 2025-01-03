@@ -2,7 +2,7 @@ use std::io;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use crate::{error::Error, is_valid_key, read_padding, write_key, write_padding};
+use crate::{error::Error, is_valid_key, read_padding, util::write_fill, write_key, write_padding};
 
 use super::{
     enums::{ImageType, SectionType, XipPageRemapSize},

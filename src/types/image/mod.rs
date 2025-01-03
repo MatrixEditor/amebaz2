@@ -2,6 +2,8 @@ pub mod pt;
 pub mod boot;
 pub mod ota;
 
+pub type RawImage = Vec<u8>;
+
 /// A trait that provides common functionality for image-like objects,
 /// such as computing and setting the segment size and signature.
 pub trait AsImage {

@@ -7,6 +7,7 @@ pub mod fst;
 pub mod header;
 pub mod image;
 pub mod section;
+pub mod flash;
 
 pub const HASH_KEY: &[u8; 32] =
     b"G\xe5f\x135\xa4\xc5\xe0\xa9Mi\xf3\xc77\xd5O#\x83y\x132\x93\x97S\xef$'\x96\x08\xf6\xd7+";
@@ -126,12 +127,20 @@ macro_rules! is_valid_key {
 macro_rules! write_padding {
     // Variant 1: Default padding (filled with `0xFF`)
     ($writer:expr, $size:literal) => {
-        $writer.write_all(&[0xFF; $size])?;
+        if $size > 4096 {
+            write_fill($writer, 0xFF, $size as u64)?;
+        } else {
+            $writer.write_all(&vec![0xFF; $size as usize])?;
+        }
     };
 
     // Variant 2: Custom padding byte
     ($writer:expr, $size:literal, $fill:literal) => {
-        $writer.write_all(&[$fill; $size])?;
+        if $size > 4096 {
+            write_fill($writer, $fill, $size as u64)?;
+        } else {
+            $writer.write_all(&vec![$fill; $size as usize])?;
+        }
     };
 }
 

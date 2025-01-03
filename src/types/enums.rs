@@ -398,7 +398,7 @@ impl HashAlgo {
 /// let part = PartitionType::try_from(1).unwrap();
 /// assert_eq!(part, PartitionType::Boot); // Successfully converts to Boot partition.
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum PartitionType {
     /// Partition table (0).
