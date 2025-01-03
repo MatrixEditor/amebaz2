@@ -235,11 +235,12 @@ impl XipPageRemapSize {
 /// - `Ecb`: Electronic Codebook mode encryption (0).
 /// - `Cbc`: Cipher Block Chaining mode encryption (1).
 /// - `Other`: Represents other custom or unsupported encryption algorithms (0xFF).
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(u16)]
 pub enum EncryptionAlgo {
     Ecb,
     Cbc,
+    #[default]
     Other = 0xFF,
 }
 
@@ -296,11 +297,12 @@ impl TryFrom<u16> for EncryptionAlgo {
 /// let algo = HashAlgo::try_from(1).unwrap();
 /// assert_eq!(algo, HashAlgo::Sha256); // Successfully converts to Sha256.
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(u16)]
 pub enum HashAlgo {
     Md5 = 0x00,
     Sha256,
+    #[default]
     Other = 0xFF,
 }
 

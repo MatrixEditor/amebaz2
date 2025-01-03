@@ -3,8 +3,65 @@ use std::io;
 use crate::error::Error;
 
 pub mod enums;
+pub mod fst;
 pub mod header;
 pub mod section;
+
+/// `KeyType` is a type alias for an optional fixed-size array of `u8` bytes.
+///
+/// This type represents an optional key where the key is an array of `u8` of a fixed size,
+/// defined by the constant generic parameter `N`. If the key is not present, the type
+/// will be `None`, otherwise, it will contain the key as an array of bytes.
+///
+/// The fixed size of the key is determined at compile time by the `N` constant, allowing
+/// different key sizes to be handled dynamically with a single type alias.
+///
+/// # Example:
+/// ```rust
+/// // KeyType with a key of length 4 bytes
+/// let key: KeyType<4> = Some([1, 2, 3, 4]);
+/// ```
+///
+/// ## Fields:
+/// - `Some([u8; N])`: Contains a fixed-size array of `u8` bytes representing the key.
+/// - `None`: Indicates that the key is not present.
+///
+/// # Type Parameters:
+/// - `N`: The fixed length of the key array (i.e., the number of `u8` bytes in the key).
+///
+/// # Traits Implemented:
+/// - Implements `Option`, meaning it can be `Some` containing a key or `None` for a missing key.
+pub type KeyType<const N: usize> = Option<[u8; N]>;
+
+/// `KeyRefType` is a type alias for an optional reference to a fixed-size array of `u8` bytes.
+///
+/// This type is similar to `KeyType`, but instead of owning the key, it holds a reference
+/// to a fixed-size array of `u8` bytes, which is useful when the key data is borrowed
+/// rather than owned. It is also parameterized by a constant generic `N`, allowing different
+/// sizes of keys to be used with a single type.
+///
+/// `KeyRefType` is typically used when the key is stored elsewhere in memory, and you want
+/// to reference it without copying or taking ownership of the data. This is useful for
+/// scenarios where the key data already exists and you need to work with it without
+/// transferring ownership.
+///
+/// # Example:
+/// ```rust
+/// // KeyRefType with a reference to a 4-byte key
+/// let key_ref: KeyRefType<4> = Some(&[1, 2, 3, 4]);
+/// ```
+///
+/// ## Fields:
+/// - `Some(&[u8; N])`: A reference to a fixed-size array of `u8` bytes representing the key.
+/// - `None`: Indicates that the key is not present.
+///
+/// # Type Parameters:
+/// - `N`: The fixed length of the key array (i.e., the number of `u8` bytes in the key).
+///
+/// # Traits Implemented:
+/// - Implements `Option`, meaning it can be `Some` containing a reference to a key or `None` for a missing key
+pub type KeyRefType<'a, const N: usize> = Option<&'a [u8; N]>;
+
 
 /// Checks if a given key is valid.
 ///
@@ -31,6 +88,102 @@ macro_rules! is_valid_key {
     };
 }
 
+/// `write_padding!` - A macro to write padding bytes to a writer.
+///
+/// This macro writes a series of padding bytes (either filled with `0xFF` or a custom byte)
+/// to a writer, ensuring that the stream is correctly aligned or that the desired padding size
+/// is achieved. It provides two variants:
+///
+/// 1. **Default fill (`0xFF`)**: The first variant writes padding filled with the byte `0xFF`.
+/// 2. **Custom fill**: The second variant allows for specifying a custom byte for padding.
+///
+/// The macro handles the error propagation automatically, returning the result of the `write_all` method.
+///
+/// # Parameters:
+/// - `$writer`: The writer to which padding bytes should be written. This must implement the
+///   `std::io::Write` trait.
+/// - `$size`: The size (in bytes) of the padding to be written.
+/// - `$fill` (optional): The byte value to fill the padding. Defaults to `0xFF` if not provided.
+///
+/// # Example 1: Default padding (filled with `0xFF`):
+/// ```rust
+/// use std::io::Cursor;
+/// let mut buffer = Cursor::new(Vec::new());
+/// write_padding!(buffer, 16); // Writes 16 bytes of `0xFF` to the buffer
+/// ```
+///
+/// # Example 2: Custom padding byte:
+/// ```rust
+/// use std::io::Cursor;
+/// let mut buffer = Cursor::new(Vec::new());
+/// write_padding!(buffer, 8, 0x00); // Writes 8 bytes of `0x00` to the buffer
+/// ```
+#[macro_export]
+macro_rules! write_padding {
+    // Variant 1: Default padding (filled with `0xFF`)
+    ($writer:expr, $size:literal) => {
+        $writer.write_all(&[0xFF; $size])?;
+    };
+
+    // Variant 2: Custom padding byte
+    ($writer:expr, $size:literal, $fill:literal) => {
+        $writer.write_all(&[$fill; $size])?;
+    };
+}
+
+/// Write a key to a stream with padding support.
+///
+/// This macro writes the key to the stream if it is present. If the key is `None`,
+/// the macro writes padding instead, ensuring the correct number of bytes is always written.
+///
+/// # Parameters:
+/// - `$writer`: The writer where the key (or padding) should be written. Must implement the `std::io::Write` trait.
+/// - `$key`: The key to write. This can be `Some([u8; N])` where `N` is the length of the key, or `None` to indicate that the key is missing.
+/// - `$len`: The length of the key (or the padding) in bytes. This will determine how many bytes to write if the key is absent.
+///
+/// # Example:
+/// ```rust
+/// let mut buffer = Vec::new();
+/// let key: Option<[u8; 10]> = Some([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+/// write_key!(buffer, key, 10);
+/// ```
+#[macro_export]
+macro_rules! write_key {
+    // Case when the key is present: writes the key to the writer
+    ($writer:expr, $key:expr, $len:literal) => {
+        if let Some(key) = &$key {
+            $writer.write_all(key)?;
+        } else {
+            // If the key is None, write padding instead
+            write_padding!($writer, $len);
+        }
+    };
+}
+
+/// Read (skip) padding bytes in a reader.
+///
+/// This macro skips a specified number of bytes in the stream, commonly used when there is
+/// padding between fields in a binary format.
+///
+/// # Parameters:
+/// - `$reader`: The reader to skip the padding in. This must implement the `std::io::Read`
+///   and `std::io::Seek` traits.
+/// - `$size`: The number of bytes to skip. This will be passed to the `seek` function in the
+///   form of `SeekFrom::Current`.
+///
+/// # Example:
+/// ```rust
+/// use std::io::Cursor;
+/// let mut buffer = Cursor::new(Vec::new());
+/// read_padding!(buffer, 16); // Skips 16 bytes in the buffer
+/// ```
+#[macro_export]
+macro_rules! read_padding {
+    // Variant to skip a number of bytes by using SeekFrom::Current
+    ($reader:expr, $size:expr) => {
+        $reader.seek(io::SeekFrom::Current(($size) as i64))?;
+    };
+}
 
 /// A trait for types that can be deserialized from a stream.
 ///

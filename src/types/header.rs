@@ -2,11 +2,11 @@ use std::io;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use crate::{error::Error, is_valid_key};
+use crate::{error::Error, is_valid_key, read_padding, write_key, write_padding};
 
 use super::{
     enums::{ImageType, SectionType, XipPageRemapSize},
-    BinarySize, FromStream, ToStream,
+    BinarySize, FromStream, KeyRefType, KeyType, ToStream,
 };
 
 /// A struct representing the key block with two public keys:
@@ -149,9 +149,9 @@ pub struct ImageHeader {
 
     /// Offset to the next image header.
     ///
-    /// If there is no next image header, this field is set to `0xFFFF_FFFF`. Otherwise, it holds the
+    /// If there is no next image header, this field is set to `None`. Otherwise, it holds the
     /// byte offset to the next image header.
-    pub next_offset: u32,
+    pub next_offset: Option<u32>,
 
     /// The type of the image.
     ///
@@ -170,16 +170,16 @@ pub struct ImageHeader {
     pub serial: u32,
 
     /// User key 1, used for encryption
-    pub user_key1: [u8; 32],
+    pub user_key1: KeyType<32>,
 
     /// User key 2, used for encryption
-    pub user_key2: [u8; 32],
+    pub user_key2: KeyType<32>,
 }
 
 impl Default for ImageHeader {
     /// Creates a default `ImageHeader` instance with the following default values:
     /// - `segment_size`: `0` (default size is zero)
-    /// - `next_offset`: `0xFFFF_FFFF` (indicating no next header)
+    /// - `next_offset`: `0xFFFF_FFFF` (indicating no next header) == None
     /// - `img_type`: `ImageType::Parttab` (default is partition table)
     /// - `is_encrypt`: `false` (default is no encryption)
     /// - `serial`: `0xFFFF_FFFF` (default invalid serial number)
@@ -191,18 +191,19 @@ impl Default for ImageHeader {
     fn default() -> Self {
         ImageHeader {
             segment_size: 0,
-            next_offset: 0xFFFF_FFFF,     // invalid by default
+            next_offset: None,            // invalid by default
             img_type: ImageType::Parttab, // partition table by default
             is_encrypt: false,
             serial: 0xFFFF_FFFF,
-            user_key1: [0xFF; 32], // invalid by default
-            user_key2: [0xFF; 32],
+            user_key1: None, // invalid by default
+            user_key2: None,
         }
     }
 }
 
 impl BinarySize for ImageHeader {
     /// Returns the binary size of the `ImageHeader` in bytes.
+    #[inline]
     fn binary_size() -> usize {
         0x60 // 96 bytes total size
     }
@@ -223,31 +224,41 @@ impl FromStream for ImageHeader {
         R: std::io::Read + std::io::Seek,
     {
         self.segment_size = reader.read_u32::<LittleEndian>()?;
-        self.next_offset = reader.read_u32::<LittleEndian>()?;
+
+        let offset = reader.read_u32::<LittleEndian>()?;
+        self.next_offset = if offset != 0xFFFF_FFFF {
+            Some(offset)
+        } else {
+            None
+        };
+
         self.img_type = ImageType::try_from(reader.read_u8()?)?;
         self.is_encrypt = reader.read_u8()? != 0;
 
         // Skip the next byte (reserved - seems to be pkey_index)
-        reader.seek(io::SeekFrom::Current(1))?;
+        read_padding!(reader, 1);
 
         let flags = reader.read_u8()?;
         let key1_valid = flags & 0b01 == 0x01;
         let key2_valid = flags & 0b10 == 0x02;
 
-        reader.seek(io::SeekFrom::Current(8))?;
+        read_padding!(reader, 8);
         self.serial = reader.read_u32::<LittleEndian>()?;
-        reader.seek(io::SeekFrom::Current(8))?;
+        read_padding!(reader, 8);
 
+        // REVISIT:
         if key1_valid {
-            reader.read_exact(&mut self.user_key1)?;
+            self.user_key1 = Some([0; 32]);
+            reader.read_exact(&mut self.user_key1.unwrap())?;
         } else {
-            reader.seek(io::SeekFrom::Current(32))?;
+            read_padding!(reader, 32);
         }
 
         if key2_valid {
-            reader.read_exact(&mut self.user_key2)?;
+            self.user_key2 = Some([0; 32]);
+            reader.read_exact(&mut self.user_key2.unwrap())?;
         } else {
-            reader.seek(io::SeekFrom::Current(32))?;
+            read_padding!(reader, 32);
         }
 
         Ok(())
@@ -269,7 +280,7 @@ impl ToStream for ImageHeader {
         W: std::io::Write,
     {
         writer.write_u32::<LittleEndian>(self.segment_size)?;
-        writer.write_u32::<LittleEndian>(self.next_offset)?;
+        writer.write_u32::<LittleEndian>(self.next_offset.unwrap_or(0xFFFF_FFFF))?;
         writer.write_u8(self.img_type as u8)?;
         writer.write_u8(self.is_encrypt as u8)?;
         writer.write_u8(0x00)?;
@@ -279,13 +290,13 @@ impl ToStream for ImageHeader {
         let key2_valid = self.is_key2_valid();
         writer.write_u8((key1_valid as u8) | ((key2_valid as u8) << 1))?;
 
-        writer.write_all(&[0xFF; 8])?;
+        write_padding!(writer, 8);
         writer.write_u32::<LittleEndian>(self.serial)?;
-        writer.write_all(&[0xFF; 8])?;
+        write_padding!(writer, 8);
 
         // If key1 is valid, write user_key1 (32 bytes), otherwise write padding
-        writer.write_all(&self.user_key1)?;
-        writer.write_all(&self.user_key2)?;
+        write_key!(writer, self.user_key1, 32);
+        write_key!(writer, self.user_key2, 32);
         Ok(())
     }
 }
@@ -301,7 +312,10 @@ impl ImageHeader {
     /// - `true` if `user_key1` is valid (i.e., not all bytes are `0xFF`).
     /// - `false` if `user_key1` is invalid (i.e., all bytes are `0xFF`).
     pub fn is_key1_valid(&self) -> bool {
-        is_valid_key!(self.user_key1)
+        match &self.user_key1 {
+            None => false,
+            Some(key) => key.iter().any(|&byte| byte != 0xFF),
+        }
     }
 
     /// Checks if the second user key (`user_key2`) is valid.
@@ -310,7 +324,10 @@ impl ImageHeader {
     /// - `true` if `user_key2` is valid (i.e., not all bytes are `0xFF`).
     /// - `false` if `user_key2` is invalid (i.e., all bytes are `0xFF`).
     pub fn is_key2_valid(&self) -> bool {
-        is_valid_key!(self.user_key2)
+        match &self.user_key2 {
+            None => false,
+            Some(key) => key.iter().any(|&byte| byte != 0xFF),
+        }
     }
 
     /// Checks if there is a next image header.
@@ -323,23 +340,23 @@ impl ImageHeader {
     /// - `true` if there is a next image (i.e., `next_offset` is not `0xFFFF_FFFF`).
     /// - `false` if there is no next image (i.e., `next_offset` is `0xFFFF_FFFF`).
     pub fn has_next(&self) -> bool {
-        self.next_offset != 0xFFFF_FFFF
+        self.next_offset.is_some()
     }
 
     /// Gets the first user key (`user_key1`).
     ///
     /// # Returns
     /// A reference to the `user_key1` array (32 bytes).
-    pub fn get_user_key1(&self) -> &[u8; 32] {
-        &self.user_key1
+    pub fn get_user_key1(&self) -> KeyRefType<32> {
+        self.user_key1.as_ref()
     }
 
     /// Gets the second user key (`user_key2`).
     ///
     /// # Returns
     /// A reference to the `user_key2` array (32 bytes).
-    pub fn get_user_key2(&self) -> &[u8; 32] {
-        &self.user_key2
+    pub fn get_user_key2(&self) -> KeyRefType<32> {
+        self.user_key2.as_ref()
     }
 }
 
@@ -380,7 +397,7 @@ pub struct SectionHeader {
     ///
     /// This field indicates the position of the next section in memory. A value of `0xFFFF_FFFF`
     /// indicates that this is the last section, and no further sections exist.
-    pub next_offset: u32,
+    pub next_offset: Option<u32>,
 
     /// The type of the current section.
     pub sect_type: SectionType,
@@ -408,13 +425,13 @@ pub struct SectionHeader {
     /// This is a 16-byte key used during the XIP process. If encryption is enabled for the section,
     /// this key is used for decryption. The default value is an array of `0xFF` bytes, indicating an
     /// invalid key by default.
-    xip_key: [u8; 16],
+    xip_key: KeyType<16>,
 
     /// The initialization vector (IV) used for XIP encryption.
     ///
     /// This is a 16-byte initialization vector (IV) used in conjunction with the `xip_key` during XIP
     /// encryption operations. As with the key, it is initialized to an invalid value of `0xFF` bytes.
-    xip_iv: [u8; 16],
+    xip_iv: KeyType<16>,
 }
 
 impl BinarySize for SectionHeader {
@@ -422,6 +439,7 @@ impl BinarySize for SectionHeader {
     ///
     /// # Returns
     /// Returns the binary size as a constant `usize` value, which is `0x60` (96 bytes).
+    #[inline]
     fn binary_size() -> usize {
         return 0x60;
     }
@@ -444,14 +462,14 @@ impl Default for SectionHeader {
     fn default() -> SectionHeader {
         return SectionHeader {
             length: 0,
-            next_offset: 0xFFFF_FFFF, // make last as default
+            next_offset: None, // make last as default
             sect_type: SectionType::XIP,
             sce_enabled: false, // encrypted currently not supported
             xip_page_size: XipPageRemapSize::_16K,
             xip_block_size: 0,
             valid_pattern: [0, 1, 2, 3, 4, 5, 6, 7],
-            xip_key: [0xFF; 16],
-            xip_iv: [0xFF; 16],
+            xip_key: None,
+            xip_iv: None,
         };
     }
 }
@@ -477,29 +495,34 @@ impl FromStream for SectionHeader {
         R: std::io::Read + std::io::Seek,
     {
         self.length = reader.read_u32::<LittleEndian>()?;
-        self.next_offset = reader.read_u32::<LittleEndian>()?;
+        self.next_offset = match reader.read_u32::<LittleEndian>()? {
+            0xFFFF_FFFF => None,
+            offset => Some(offset),
+        };
         self.sect_type = SectionType::try_from(reader.read_u8()?)?;
         self.sce_enabled = reader.read_u8()? != 0;
         self.xip_page_size = XipPageRemapSize::try_from(reader.read_u8()?)?;
         self.xip_block_size = reader.read_u8()?;
 
-        reader.seek(io::SeekFrom::Current(4))?;
+        read_padding!(reader, 4);
         reader.read_exact(&mut self.valid_pattern)?;
 
         let sce_key_iv_valid = reader.read_u8()? & 0b01 == 1;
-
-        reader.seek(io::SeekFrom::Current(7))?;
+        read_padding!(reader, 7);
 
         if sce_key_iv_valid {
-            reader.read_exact(&mut self.xip_key)?;
-            reader.read_exact(&mut self.xip_iv)?;
+            self.xip_key = Some([0; 16]);
+            self.xip_iv = Some([0; 16]);
+            reader.read_exact(&mut self.xip_key.unwrap())?;
+            reader.read_exact(&mut self.xip_iv.unwrap())?;
             // Align to 96 bytes (by skipping 32 bytes)
-            reader.seek(io::SeekFrom::Current(32))?;
+            read_padding!(reader, 32);
         } else {
+            self.xip_key = None;
+            self.xip_iv = None;
             // Align to 96 bytes by skipping 64 bytes if no key/IV is present
-            reader.seek(io::SeekFrom::Current(64))?;
+            read_padding!(reader, 64);
         }
-
         Ok(())
     }
 }
@@ -519,7 +542,7 @@ impl ToStream for SectionHeader {
         W: io::Write + io::Seek,
     {
         writer.write_u32::<LittleEndian>(self.length)?;
-        writer.write_u32::<LittleEndian>(self.next_offset)?;
+        writer.write_u32::<LittleEndian>(self.next_offset.unwrap_or(0xFFFF_FFFF))?;
         writer.write_u8(self.sect_type as u8)?;
         writer.write_u8(self.sce_enabled as u8)?;
         writer.write_u8(self.xip_page_size as u8)?;
@@ -530,8 +553,8 @@ impl ToStream for SectionHeader {
         writer.write_u8(self.xip_key_iv_valid() as u8)?;
         writer.write_all(&[0xFF; 7])?;
 
-        writer.write_all(&self.xip_key)?;
-        writer.write_all(&self.xip_iv)?;
+        write_key!(writer, self.xip_key, 16);
+        write_key!(writer, self.xip_iv, 16);
         Ok(())
     }
 }
@@ -552,7 +575,7 @@ impl SectionHeader {
     /// - `true` if the section has a next section (i.e., `next_offset` is not `0xFFFF_FFFF`).
     /// - `false` if this is the last section (i.e., `next_offset` is `0xFFFF_FFFF`).
     pub fn has_next(&self) -> bool {
-        return self.next_offset != 0xFFFF_FFFF;
+        return self.next_offset.is_some();
     }
 
     /// Checks if both the `xip_key` and `xip_iv` fields are valid.
@@ -568,17 +591,22 @@ impl SectionHeader {
     /// - `true` if both `xip_key` and `xip_iv` are valid.
     /// - `false` if either `xip_key` or `xip_iv` is invalid.
     pub fn xip_key_iv_valid(&self) -> bool {
-        return is_valid_key!(self.xip_key) && is_valid_key!(self.xip_iv);
+        match (&self.xip_key, &self.xip_iv) {
+            (Some(xip_key), Some(xip_iv)) => {
+                return is_valid_key!(xip_key) && is_valid_key!(xip_iv);
+            }
+            _ => return false,
+        }
     }
 
     /// Retrieves the XIP key.
-    pub fn get_xip_key(&self) -> &[u8; 16] {
-        &self.xip_key
+    pub fn get_xip_key(&self) -> KeyRefType<16> {
+        self.xip_key.as_ref()
     }
 
     /// Retrieves the XIP IV.
-    pub fn get_xip_iv(&self) -> &[u8; 16] {
-        &self.xip_iv
+    pub fn get_xip_iv(&self) -> KeyRefType<16> {
+        self.xip_iv.as_ref()
     }
 
     /// Retrieves the valid pattern.
