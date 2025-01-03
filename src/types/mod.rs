@@ -6,6 +6,7 @@ pub mod enums;
 pub mod fst;
 pub mod header;
 pub mod section;
+pub mod image;
 
 /// `KeyType` is a type alias for an optional fixed-size array of `u8` bytes.
 ///
