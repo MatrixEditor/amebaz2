@@ -43,6 +43,7 @@ use crate::{
     error::Error,
     is_valid_key,
     types::{
+        enums::HashAlgo,
         from_stream,
         fst::FST,
         header::{ImageHeader, KeyBlock},
@@ -177,6 +178,36 @@ impl SubImage {
     pub fn get_section_mut(&mut self, index: usize) -> Option<&mut Section> {
         self.sections.get_mut(index)
     }
+
+    /// Reads the signature for this `SubImage` from a binary stream and computes its hash.
+    ///
+    /// This function reads the header and segment data of the `SubImage` from the given reader,
+    /// and then computes the hash of the data using the specified hashing algorithm (`algo`).
+    /// Optionally, a key can be provided for use by certain hashing algorithms (e.g., HMAC).
+    ///
+    /// # Arguments:
+    /// - `reader`: A mutable reference to a reader that implements both `io::Read` and `io::Seek`.
+    /// - `algo`: The hash algorithm to use for computing the signature (e.g., SHA-256, HMAC).
+    /// - `key`: An optional key for algorithms that require one (e.g., HMAC). If no key is needed, this can be `None`.
+    ///
+    /// # Returns:
+    /// - `Result<Vec<u8>, Error>`: Returns the computed signature as a `Vec<u8>` if successful,
+    ///   or an `Error` if there is an issue reading the data or computing the hash.
+    pub fn signature_from_stream<R>(
+        &self,
+        reader: &mut R,
+        algo: HashAlgo,
+        key: Option<&[u8]>,
+    ) -> Result<Vec<u8>, Error>
+    where
+        R: io::Read + io::Seek,
+    {
+        let mut buffer =
+            Vec::with_capacity(ImageHeader::binary_size() + self.header.segment_size as usize);
+
+        reader.read_exact(&mut buffer)?;
+        algo.compute_hash(&buffer, key)
+    }
 }
 
 impl AsImage for SubImage {
@@ -224,7 +255,7 @@ impl AsImage for SubImage {
     /// - `Ok(Vec<u8>)`: The signature as a byte vector.
     /// - `Err(Error)`: An error if signature calculation fails (e.g., unsupported hash algorithm).
     fn build_signature(&self, key: Option<&[u8]>) -> Result<Vec<u8>, crate::error::Error> {
-        let mut buffer = vec![0u8; self.build_segment_size() as usize];
+        let mut buffer = vec![0u8; ImageHeader::binary_size() + self.build_segment_size() as usize];
         let mut writer = Cursor::new(&mut buffer);
 
         // Write the header, FST, and sections to the buffer.
@@ -261,7 +292,6 @@ impl FromStream for SubImage {
             let has_next = section.header.has_next();
             self.sections.push(section);
             if !has_next {
-                skip_aligned(reader, 0x20)?;
                 break;
             }
         }
@@ -444,6 +474,37 @@ impl OTAImage {
         ))
     }
 
+    /// Reads the OTA signature from a stream and computes its hash using a specified algorithm.
+    ///
+    /// This function reads the `OTAImage` signature data from the provided reader, computes
+    /// its hash using the specified `HashAlgo`, and returns the computed signature.
+    ///
+    /// The function assumes that the data read corresponds to the "OTA signature" section of
+    /// the `OTAImage` format, which is typically the first part of the image.
+    ///
+    /// # Arguments:
+    /// - `reader`: A mutable reference to a reader that implements `io::Read` and `io::Seek`.
+    ///   This will be used to read the OTA signature data.
+    /// - `algo`: The hash algorithm to use for computing the signature (e.g., SHA-256).
+    /// - `key`: An optional key to be used by certain hash algorithms (e.g., for HMAC).
+    ///   If the algorithm does not require a key, this can be `None`.
+    ///
+    /// # Returns:
+    /// - `Result<Vec<u8>, crate::error::Error>`: Returns the computed signature as a `Vec<u8>`,
+    ///   or an error if there is an issue reading the data or computing the hash.
+    pub fn ota_signature_from_stream<R>(
+        reader: &mut R,
+        algo: HashAlgo,
+        key: Option<&[u8]>,
+    ) -> Result<Vec<u8>, crate::error::Error>
+    where
+        R: io::Read + io::Seek,
+    {
+        let mut buffer = Vec::with_capacity(ImageHeader::binary_size());
+        reader.read_exact(&mut buffer)?;
+        algo.compute_hash(&buffer, key)
+    }
+
     /// Sets the OTA image signature, specifically the public encryption key in the keyblock.
     ///
     /// # Arguments:
@@ -479,7 +540,7 @@ impl OTAImage {
         let mut buffer = Vec::new();
         // we assume this reader is at pos 0
         reader.read_to_end(&mut buffer)?;
-        Ok(OTAImage::checksum_from_buffer(&buffer))
+        Ok(OTAImage::checksum_from_buffer(&buffer[..&buffer.len() - 4]))
     }
 }
 impl FromStream for OTAImage {

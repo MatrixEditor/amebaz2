@@ -81,14 +81,29 @@ impl Section {
         return &self.data;
     }
 
-    pub fn build_aligned_size(&self) -> u32 {
-        let size = SectionHeader::binary_size() + EntryHeader::binary_size() + self.data.len();
-        let alignment = size % 0x20;
+    /// Computes the aligned length of the section data, ensuring it is padded to a 0x20-byte boundary.
+    ///
+    /// This function calculates the total length of the section (including the `EntryHeader` and the
+    /// section's data) and ensures that the result is aligned to a 0x20-byte boundary.
+    ///
+    /// # Returns:
+    /// - `u32`: The aligned length of the section, including the `EntryHeader` and section data.
+    pub fn build_aligned_length(&self) -> u32 {
+        let length = EntryHeader::binary_size() + self.data.len();
+        let alignment = length % 0x20;
         if alignment == 0 {
-            size as u32
+            length as u32
         } else {
-            (size + (0x20 - (size % 0x20))) as u32
+            (length + (0x20 - (length % 0x20))) as u32
         }
+    }
+
+    /// Computes the aligned size of the section, including the `SectionHeader`, `EntryHeader`, and section data.
+    ///
+    /// # Returns:
+    /// - `u32`: The aligned size of the section, including headers and data.
+    pub fn build_aligned_size(&self) -> u32 {
+        SectionHeader::binary_size() as u32 + self.build_aligned_length()
     }
 }
 
@@ -107,12 +122,11 @@ impl FromStream for Section {
     {
         self.header = from_stream(reader)?;
         self.entry_header = from_stream(reader)?;
-        self.data.resize(self.header.length as usize, 0x00);
+        // length includes entry header size
+        self.data.resize(self.header.length as usize - 0x20, 0x00);
         // Read the actual data for the section into the data buffer
         reader.read_exact(&mut self.data)?;
 
-        // Optional: Align the stream if necessary
-        // REVISIT: should we align the stream position here for further sections?
         skip_aligned(reader, 0x20)?;
         Ok(())
     }

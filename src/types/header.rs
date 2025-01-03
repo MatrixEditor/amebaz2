@@ -264,15 +264,17 @@ impl FromStream for ImageHeader {
 
         // REVISIT:
         if key1_valid {
-            self.user_key1 = Some([0; 32]);
-            reader.read_exact(&mut self.user_key1.unwrap())?;
+            let mut key = [0; 32];
+            reader.read_exact(&mut key)?;
+            self.user_key1 = Some(key);
         } else {
             read_padding!(reader, 32);
         }
 
         if key2_valid {
-            self.user_key2 = Some([0; 32]);
-            reader.read_exact(&mut self.user_key2.unwrap())?;
+            let mut key = [0; 32];
+            reader.read_exact(&mut key)?;
+            self.user_key2 = Some(key);
         } else {
             read_padding!(reader, 32);
         }
