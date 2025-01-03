@@ -118,6 +118,22 @@ impl KeyBlock {
     pub fn get_hash_pubkey(&self) -> &[u8; 32] {
         &self.hash_pubkey
     }
+
+    /// Retrieves a mutable reference to the encryption public key.
+    ///
+    /// # Returns
+    /// - A mutable reference to the encryption public key (32 bytes).
+    pub fn get_enc_pubkey_mut(&mut self) -> &mut [u8; 32] {
+        &mut self.enc_pubkey
+    }
+
+    /// Retrieves a mutable reference to the hash public key.
+    ///
+    /// # Returns
+    /// - A mutable reference to the hash public key (32 bytes).
+    pub fn get_hash_pubkey_mut(&mut self) -> &mut [u8; 32] {
+        &mut self.hash_pubkey
+    }
 }
 
 // --- Generic Header ---

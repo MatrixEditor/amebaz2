@@ -36,16 +36,21 @@
 // └────────────────────────────────────────┘
 //                     .
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{self, Cursor};
 
 use crate::{
     error::Error,
+    is_valid_key,
     types::{
-        from_stream, fst::FST, header::ImageHeader, section::Section, BinarySize, FromStream,
-        ToStream,
+        from_stream,
+        fst::FST,
+        header::{ImageHeader, KeyBlock},
+        section::Section,
+        BinarySize, FromStream, KeyRefType, KeyType, ToStream,
     },
     util::{skip_aligned, write_fill},
-    write_aligned,
+    write_aligned, write_key, write_padding,
 };
 
 use super::AsImage;
@@ -287,6 +292,261 @@ impl ToStream for SubImage {
 
         let align = if self.header.has_next() { 0x4000 } else { 0x40 };
         write_aligned!(writer, align, 0x87, optional);
+        Ok(())
+    }
+}
+
+/// Represents an OTA (Over-The-Air) image.
+///
+/// An `OTAImage` is used in the context of firmware updates, where the image consists of
+/// multiple subimages (representing different sections of the firmware), each of which
+/// may be signed and encrypted. The `keyblock` holds encrypted keys, `public_keys` are used for
+/// verifying signatures, and `checksum` ensures data integrity.
+///
+/// **Note**: The encryption and signature verification are currently are using the hash key
+/// specified in the partition table!
+#[derive(Debug)]
+pub struct OTAImage {
+    /// The key block containing cryptographic keys for encryption and signature verification.
+    pub keyblock: KeyBlock,
+
+    /// Public keys (up to 5) used for signature verification.
+    public_keys: [KeyType<32>; 5],
+
+    /// A collection of subimages contained in the OTA image.
+    subimages: Vec<SubImage>,
+
+    /// A checksum value for verifying the integrity of the OTA image.
+    pub checksum: Option<u32>,
+}
+
+impl Default for OTAImage {
+    /// Creates a default `OTAImage` with an empty keyblock, no public keys, no subimages, and a checksum of -1.
+    fn default() -> Self {
+        OTAImage {
+            keyblock: KeyBlock::default(),
+            public_keys: [None; 5],
+            subimages: Vec::new(),
+            checksum: None,
+        }
+    }
+}
+
+impl OTAImage {
+    /// Returns a slice of the subimages contained in the OTA image.
+    ///
+    /// # Returns:
+    /// - A reference to a slice containing all the subimages.
+    pub fn get_subimages(&self) -> &[SubImage] {
+        return &self.subimages;
+    }
+
+    /// Returns a mutable slice of the subimages contained in the OTA image.
+    ///
+    /// # Returns:
+    /// - A mutable reference to a slice containing all the subimages.
+    pub fn get_subimages_mut(&mut self) -> &mut [SubImage] {
+        return &mut self.subimages;
+    }
+
+    /// Retrieves a specific subimage by its index.
+    ///
+    /// # Arguments:
+    /// - `index`: The index of the subimage to retrieve.
+    ///
+    /// # Returns:
+    /// - `Some(SubImage)` if the subimage exists at the given index, `None` otherwise.
+    pub fn get_subimage(&self, index: usize) -> Option<&SubImage> {
+        return self.subimages.get(index);
+    }
+
+    /// Retrieves a mutable reference to a specific subimage by its index.
+    ///
+    /// # Arguments:
+    /// - `index`: The index of the subimage to retrieve.
+    ///
+    /// # Returns:
+    /// - `Some(&mut SubImage)` if the subimage exists at the given index, `None` otherwise.
+    pub fn get_subimage_mut(&mut self, index: usize) -> Option<&mut SubImage> {
+        return self.subimages.get_mut(index);
+    }
+
+    /// Adds a new subimage to the OTA image.
+    ///
+    /// # Arguments:
+    /// - `subimage`: The `SubImage` to add to the OTA image.
+    pub fn add_subimage(&mut self, subimage: SubImage) {
+        self.subimages.push(subimage);
+    }
+
+    /// Removes a subimage from the OTA image at the specified index.
+    ///
+    /// # Arguments:
+    /// - `index`: The index of the subimage to remove.
+    pub fn rem_subimage_at(&mut self, index: usize) {
+        self.subimages.remove(index);
+    }
+
+    /// Returns the encryption public key from the keyblock, which is used for OTA signature verification.
+    ///
+    /// # Returns:
+    /// - A reference to the encryption public key (32 bytes) used for signature verification.
+    pub fn get_ota_signature(&self) -> &[u8; 32] {
+        return self.keyblock.get_enc_pubkey();
+    }
+
+    /// Retrieves a specific public key used for signature verification from the OTA image.
+    ///
+    /// # Arguments:
+    /// - `index`: The index (0-4) of the public key to retrieve.
+    ///
+    /// # Returns:
+    /// - A reference to the public key at the specified index, if it exists.
+    pub fn get_public_key(&self, index: u8) -> KeyRefType<32> {
+        return self.public_keys[index as usize].as_ref();
+    }
+}
+
+// cryptographic ops
+impl OTAImage {
+    /// Builds the OTA image signature, which is the hash result of the first SubImage's header.
+    ///
+    /// # Arguments:
+    /// - `key`: An optional key to be used in the hash calculation (may be `None` if no key is provided).
+    ///
+    /// # Returns:
+    /// - `Result<Vec<u8>, crate::error::Error>`: The computed signature as a vector of bytes on success,
+    ///   or an error if the computation cannot be completed (e.g., `fst.hash_algo` is `None`).
+    pub fn build_ota_signature(&self, key: Option<&[u8]>) -> Result<Vec<u8>, crate::error::Error> {
+        let mut buffer = Vec::with_capacity(ImageHeader::binary_size());
+        // according to spec:
+        // OTA signature: The hash result of the 1st Image header “Sub FW Image 0 Header”
+        // which is:
+        // ├────────────────────────────────────────┤
+        // │      SubImage 0 Header (96 bytes)      │
+        // ├────────────────────────────────────────┤
+        //
+        // the key is the hash key from the partition table record for this image
+        if let Some(subimage) = self.get_subimage(0) {
+            if let Some(algo) = &subimage.fst.hash_algo {
+                let mut writer = Cursor::new(&mut buffer);
+                subimage.header.write_to(&mut writer)?;
+                return algo.compute_hash(&buffer, key);
+            } else {
+                return Err(Error::NotImplemented(
+                    "OTAImage::build_ota_signature: subimage[0].fst.hash_algo is None".to_string(),
+                ));
+            }
+        }
+
+        Err(Error::NotImplemented(
+            "OTAImage::build_ota_signature: subimage[0] not found".to_string(),
+        ))
+    }
+
+    /// Sets the OTA image signature, specifically the public encryption key in the keyblock.
+    ///
+    /// # Arguments:
+    /// - `signature`: The signature (encryption public key) to set, which will replace the existing public key.
+    pub fn set_ota_signature(&mut self, signature: &[u8]) {
+        self.keyblock
+            .get_enc_pubkey_mut()
+            .copy_from_slice(signature);
+    }
+
+    /// Calculates a checksum from a byte buffer by summing all the byte values and applying a bitmask.
+    ///
+    /// # Arguments:
+    /// - `buf`: The byte buffer to compute the checksum from.
+    ///
+    /// # Returns:
+    /// - `i32`: The computed checksum as a 32-bit signed integer.
+    pub fn checksum_from_buffer(buf: &[u8]) -> u32 {
+        buf.iter().map(|&byte| byte as u32).sum::<u32>()
+    }
+
+    /// Calculates a checksum from a stream by reading the content into a buffer and computing its checksum.
+    ///
+    /// # Arguments:
+    /// - `reader`: A reader that implements `io::Read + io::Seek` from which the content will be read.
+    ///
+    /// # Returns:
+    /// - `Result<i32, Error>`: The checksum computed from the stream as a 32-bit signed integer, or an error if the reading fails.
+    pub fn checksum_from_stream<R>(reader: &mut R) -> Result<u32, Error>
+    where
+        R: io::Read + io::Seek,
+    {
+        let mut buffer = Vec::new();
+        // we assume this reader is at pos 0
+        reader.read_to_end(&mut buffer)?;
+        Ok(OTAImage::checksum_from_buffer(&buffer))
+    }
+}
+impl FromStream for OTAImage {
+    /// Reads an `OTAImage` from a binary stream.
+    ///
+    /// This function assumes that the provided reader is positioned correctly and
+    /// that the stream contains the expected data format for the `OTAImage` struct.
+    ///
+    /// # Arguments:
+    /// - `reader`: A mutable reference to a reader that implements both `io::Read` and `io::Seek`.
+    ///
+    /// # Returns:
+    /// - `Result<(), Error>`: Returns `Ok(())` if the data is read and parsed successfully, or an `Error`
+    ///   if something goes wrong (e.g., invalid format, stream read errors).
+    fn read_from<R>(&mut self, reader: &mut R) -> Result<(), Error>
+    where
+        R: io::Read + io::Seek,
+    {
+        self.keyblock.read_from(reader)?;
+
+        // Read 5 public keys, validate each, and store the valid ones.
+        for i in 0..5 {
+            let mut key = [0x00; 32];
+            reader.read_exact(&mut key)?;
+            if is_valid_key!(&key) {
+                self.public_keys[i] = Some(key);
+            }
+        }
+
+        loop {
+            let subimage: SubImage = from_stream(reader)?;
+            let has_next = subimage.header.has_next();
+            self.subimages.push(subimage);
+
+            // If there is no next subimage, break out of the loop.
+            if !has_next {
+                break;
+            }
+        }
+
+        let checksum = reader.read_u32::<LittleEndian>()?;
+        if checksum != 0xFFFF_FFFF {
+            self.checksum = Some(checksum);
+        }
+        Ok(())
+    }
+}
+
+impl ToStream for OTAImage {
+    /// Writes an `OTAImage` to a binary stream.
+    ///
+    /// # Arguments:
+    /// - `writer`: A mutable reference to a writer that implements both `io::Write` and `io::Seek`.
+    fn write_to<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: io::Write + io::Seek,
+    {
+        self.keyblock.write_to(writer)?;
+        for key in &self.public_keys {
+            write_key!(writer, key, 32);
+        }
+        for subimage in &self.subimages {
+            subimage.write_to(writer)?;
+        }
+        if let Some(checksum) = self.checksum {
+            writer.write_u32::<LittleEndian>(checksum)?;
+        }
         Ok(())
     }
 }
