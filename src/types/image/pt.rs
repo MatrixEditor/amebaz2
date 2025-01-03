@@ -551,7 +551,7 @@ impl AsImage for PartitionTableImage
     ///
     /// # Returns:
     /// - `Result<Vec<u8>, crate::error::Error>`: The computed signature as a vector of bytes.
-    fn build_signature(&self, key: &[u8]) -> Result<Vec<u8>, Error> {
+    fn build_signature(&self, key: Option<&[u8]>) -> Result<Vec<u8>, Error> {
         let mut buffer =
             vec![0xFF; 64 + ImageHeader::binary_size() + self.build_segment_size() as usize];
         let mut writer = Cursor::new(&mut buffer);
@@ -560,7 +560,7 @@ impl AsImage for PartitionTableImage
         self.header.write_to(&mut writer)?;
         self.pt.write_to(&mut writer)?;
 
-        Ok(hmac_sha256(key, &buffer)?.to_vec())
+        Ok(hmac_sha256(key.unwrap(), &buffer)?.to_vec())
     }
 
     /// Sets the signature for the partition table image.

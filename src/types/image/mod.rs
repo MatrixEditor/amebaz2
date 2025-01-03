@@ -1,5 +1,6 @@
 pub mod pt;
 pub mod boot;
+pub mod ota;
 
 /// A trait that provides common functionality for image-like objects,
 /// such as computing and setting the segment size and signature.
@@ -47,7 +48,7 @@ pub trait AsImage {
     /// ```rust
     /// let signature = image.build_signature(&key);
     /// ```
-    fn build_signature(&self, key: &[u8]) -> Result<Vec<u8>, crate::error::Error>;
+    fn build_signature(&self, key: Option<&[u8]>) -> Result<Vec<u8>, crate::error::Error>;
 
     /// Sets the signature for the image.
     ///
@@ -75,7 +76,7 @@ pub trait AsImage {
 ///
 /// # Returns:
 /// - `Result<Vec<u8>, crate::error::Error>`: The computed signature.
-pub fn build_default_signature<I>(image: &I, key: &[u8]) -> Result<Vec<u8>, crate::error::Error>
+pub fn build_default_signature<I>(image: &I, key: Option<&[u8]>) -> Result<Vec<u8>, crate::error::Error>
 where
     I: AsImage,
 {
@@ -93,7 +94,7 @@ where
 ///
 /// # Returns:
 /// - `Result<(), crate::error::Error>`: An empty result on success, or an error.
-pub fn set_default_signature<I>(image: &mut I, key: &[u8]) -> Result<(), crate::error::Error>
+pub fn set_default_signature<I>(image: &mut I, key: Option<&[u8]>) -> Result<(), crate::error::Error>
 where
     I: AsImage,
 {

@@ -112,7 +112,7 @@ impl AsImage for BootImage {
     ///
     /// # Returns:
     /// - `Result<Vec<u8>, crate::error::Error>`: The computed signature as a vector of bytes.
-    fn build_signature(&self, key: &[u8]) -> Result<Vec<u8>, crate::error::Error> {
+    fn build_signature(&self, key: Option<&[u8]>) -> Result<Vec<u8>, crate::error::Error> {
         let mut buffer = vec![
             0x00;
             KeyBlock::binary_size()
@@ -128,7 +128,7 @@ impl AsImage for BootImage {
         writer.write_all(&self.text)?;
 
         // The signature is generated using HMAC or any other algorithm.
-        Ok(hmac_sha256(key, &buffer)?.to_vec())
+        Ok(hmac_sha256(key.unwrap(), &buffer)?.to_vec())
     }
 
     /// Sets the signature for the BootImage.

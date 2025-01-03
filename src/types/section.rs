@@ -3,9 +3,9 @@ use std::vec;
 use super::{
     from_stream,
     header::{EntryHeader, SectionHeader},
-    FromStream, ToStream,
+    BinarySize, FromStream, ToStream,
 };
-use crate::{error::Error, util::skip_aligned};
+use crate::{error::Error, util::skip_aligned, util::write_fill, write_aligned};
 
 /// Represents a section in a sub-image.
 ///
@@ -80,6 +80,16 @@ impl Section {
     pub fn get_data(&self) -> &[u8] {
         return &self.data;
     }
+
+    pub fn build_aligned_size(&self) -> u32 {
+        let size = SectionHeader::binary_size() + EntryHeader::binary_size() + self.data.len();
+        let alignment = size % 0x20;
+        if alignment == 0 {
+            size as u32
+        } else {
+            (size + (0x20 - (size % 0x20))) as u32
+        }
+    }
 }
 
 impl FromStream for Section {
@@ -126,10 +136,7 @@ impl ToStream for Section {
         writer.write_all(&self.data)?;
 
         // align the stream
-        let alignment = self.header.length % 0x20;
-        if alignment > 0 {
-            writer.write_all(&vec![0x00; 0x20 - alignment as usize])?;
-        }
+        write_aligned!(writer, 0x20, optional);
         Ok(())
     }
 }

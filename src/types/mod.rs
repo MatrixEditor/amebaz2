@@ -5,8 +5,8 @@ use crate::error::Error;
 pub mod enums;
 pub mod fst;
 pub mod header;
-pub mod section;
 pub mod image;
+pub mod section;
 
 /// `KeyType` is a type alias for an optional fixed-size array of `u8` bytes.
 ///
@@ -62,7 +62,6 @@ pub type KeyType<const N: usize> = Option<[u8; N]>;
 /// # Traits Implemented:
 /// - Implements `Option`, meaning it can be `Some` containing a reference to a key or `None` for a missing key
 pub type KeyRefType<'a, const N: usize> = Option<&'a [u8; N]>;
-
 
 /// Checks if a given key is valid.
 ///
@@ -157,6 +156,84 @@ macro_rules! write_key {
         } else {
             // If the key is None, write padding instead
             write_padding!($writer, $len);
+        }
+    };
+}
+
+/// Writes padding to a binary stream to ensure that the next write operation aligns to a specified size.
+///
+/// This macro writes padding bytes to the stream in order to align the current write position to the specified size.
+/// The padding is done with a specified fill byte and can optionally be skipped if the alignment is already met.
+///
+/// The macro can be used in different forms depending on whether you need to specify a fill byte and whether the padding
+/// is optional. The following variants are available:
+///
+/// 1. **Default Padding with 0x00 Fill (non-optional):**
+///   Aligns the current stream position to the next boundary of the specified size and fills with `0x00`.
+///
+///   ```rust
+///   write_aligned!(writer, 16);
+///   ```
+///   This will ensure the stream is aligned to a 16-byte boundary, and `0x00` is used for padding.
+///
+/// 2. **Default Padding with Custom Fill (non-optional):**
+///   Aligns the current stream position to the next boundary of the specified size and fills with a custom byte value.
+///
+///   ```rust
+///   write_aligned!(writer, 16, 0xFF);
+///   ```
+///   This will align to a 16-byte boundary and use `0xFF` as the padding byte.
+///
+/// 3. **Optional Padding with 0x00 Fill:**
+///   Optionally applies padding if necessary to align the stream position to the specified size. If the stream is already
+///   aligned, no padding is written.
+///
+///   ```rust
+///   write_aligned!(writer, 16, optional);
+///   ```
+///   This will only write padding if needed to align to a 16-byte boundary and will use `0x00` as the fill byte.
+///
+/// 4. **Optional Padding with Custom Fill:**
+///   Optionally applies padding with a custom fill byte if the stream is not already aligned to the specified size.
+///
+///   ```rust
+///   write_aligned!(writer, 16, 0xFF, optional);
+///   ```
+///   This will apply padding with `0xFF` only if needed to align to a 16-byte boundary.
+
+#[macro_export]
+macro_rules! write_aligned {
+    // 1. Default padding with 0x00 fill and optional padding
+    ($writer:expr, $size:expr, optional) => {
+        write_aligned!($writer, $size, 0x00, optional);
+    };
+
+    // 2. Default padding with 0x00 fill (non-optional)
+    ($writer:expr, $size:expr) => {
+        write_aligned!($writer, $size, 0x00);
+    };
+
+    // 3. Custom padding with optional fill byte
+    ($writer:expr, $size:expr, $fill:expr, optional) => {
+        let pos = $writer.stream_position()?;
+        let padding = (pos % $size);
+        if padding > 0 {
+            if padding > 4096 {
+                write_fill($writer, $fill, ($size - padding) as u64)?;
+            } else {
+                $writer.write_all(&vec![$fill; ($size - padding) as usize])?;
+            }
+        }
+    };
+
+    // 4. Custom padding with specified fill byte (non-optional)
+    ($writer:expr, $size:expr, $fill:expr) => {
+        let pos = $writer.stream_position()?;
+        let padding = $size - (pos % $size);
+        if padding > 4096 {
+            write_fill($writer, $fill, $size as u64)?;
+        } else {
+            $writer.write_all(&vec![$fill; $size as usize])?;
         }
     };
 }
