@@ -11,6 +11,7 @@ fn main() -> Result<(), Error> {
         Some(Commands::Ota { subcommand }) => {
             cli::ota::main(&cli, subcommand.as_ref())?;
         }
+        Some(Commands::Flash { subcommand }) => cli::flash::main(&cli, subcommand.as_ref())?,
     }
 
     Ok(())

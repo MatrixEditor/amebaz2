@@ -1,12 +1,12 @@
 use crate::error::Error;
 
-use super::{Cli, OTASubCommand};
+use super::{Cli, OtaSubCommand};
 
 pub mod parse;
 
-pub fn main(cli: &Cli, command: Option<&OTASubCommand>) -> Result<(), Error> {
+pub fn main(cli: &Cli, command: Option<&OtaSubCommand>) -> Result<(), Error> {
     match command {
-        Some(OTASubCommand::Parse { file }) => parse::parse(cli, file.clone().unwrap())?,
+        Some(OtaSubCommand::Parse { file }) => parse::parse(cli, file.clone().unwrap())?,
         _ => (),
     }
     Ok(())

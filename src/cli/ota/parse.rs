@@ -1,36 +1,21 @@
 use colored::{Color, Colorize};
 use openssl::memcmp::eq;
-use std::fs;
-use std::io::{Read, Seek};
+use std::io::Seek;
 use std::path::PathBuf;
 
-use crate::cli::Cli;
-use crate::cli::{debug, error};
-use crate::types::header::ImageHeader;
+use crate::cli::debug;
+use crate::cli::{util, Cli};
 use crate::types::image::ota::{OTAImage, SubImage};
-use crate::types::image::AsImage;
-use crate::types::{from_stream, BinarySize, HASH_KEY};
+use crate::types::{from_stream, HASH_KEY};
 
 #[allow(unused_variables)]
 pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), crate::error::Error> {
-    if cli.verbose > 2 {
-        debug!("Reading file: {:#?}", file.display());
-    }
-
-    if !file.exists() {
-        error!("Target file does not exist: {:#?}", file.display());
+    let file_reader = util::open_file(cli, file.clone());
+    if file_reader.is_err() {
         return Ok(());
     }
 
-    if file.is_dir() {
-        error!(
-            "Cloud not start parsing, because {:#?} is a directory",
-            file.display()
-        );
-        return Ok(());
-    }
-
-    let mut fp = fs::File::open(file.clone())?;
+    let mut fp = file_reader.unwrap();
     let image: OTAImage = from_stream(&mut fp)?;
 
     if cli.verbose > 2 {
@@ -174,17 +159,17 @@ fn dump_subimage(
     }
 
     println!("\n{}:", "Sections".bold());
-        let sections = subimage.get_sections();
-        for i in 0..sections.len() {
-            let section = &sections[i];
-            println!(
-                "  [{}] - {:?} (length: 0x{:08x}, load: 0x{:08x}, entry: 0x{:08x})",
-                i,
-                section.header.sect_type,
-                section.header.length,
-                section.entry_header.load_address,
-                section.entry_header.entry_address.unwrap_or(0xFFFF_FFFF)
-            );
-        }
+    let sections = subimage.get_sections();
+    for i in 0..sections.len() {
+        let section = &sections[i];
+        println!(
+            "  [{}] - {:?} (length: 0x{:08x}, load: 0x{:08x}, entry: 0x{:08x})",
+            i,
+            section.header.sect_type,
+            section.header.length,
+            section.entry_header.load_address,
+            section.entry_header.entry_address.unwrap_or(0xFFFF_FFFF)
+        );
+    }
     Ok(())
 }
