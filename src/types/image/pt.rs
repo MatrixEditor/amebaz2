@@ -15,6 +15,8 @@ use crate::{
     write_key, write_padding,
 };
 
+use super::AsImage;
+
 /// Represents the configuration of a hardware trap.
 ///
 /// A `TrapConfig` structure holds information related to a trap configuration, including
@@ -519,47 +521,66 @@ impl PartitionTableImage {
         return Ok(hmac_sha256(key, &buffer)?.to_vec());
     }
 
-    /// Builds the signature for the partition table image and stores it in the `hash` field.
+}
+
+impl AsImage for PartitionTableImage
+{
+    /// Computes the segment size for the partition table image.
     ///
-    /// This method calculates the signature by first serializing the components of the partition table
-    /// image (keyblock, header, and partition table) into a buffer. It then uses the HMAC-SHA256 algorithm
-    /// with the provided key to generate the hash (signature) for the image, which is stored in the `hash` field.
-    ///
-    /// # Arguments:
-    /// - `key`: The key to be used in the HMAC algorithm, which should be a byte slice.
+    /// The segment size includes the sizes of the keyblock, header, partition table records,
+    /// and the user binary data.
     ///
     /// # Returns:
-    /// - `Ok(())` if the signature was successfully built.
-    /// - `Err(Error)` if an error occurs during the process.
-    pub fn build_signature(&mut self, key: &[u8]) -> Result<(), Error> {
-        let mut buffer =
-            vec![0xFF; 64 + ImageHeader::binary_size() + self.header.segment_size as usize];
-        let mut writer = Cursor::new(&mut buffer);
-
-        self.keyblock.write_to(&mut writer)?;
-        self.header.write_to(&mut writer)?;
-        self.pt.write_to(&mut writer)?;
-
-        self.hash = hmac_sha256(key, &buffer)?;
-        Ok(())
-    }
-
-    /// Calculates and updates the segment size of the partition table image based on its contents.
-    ///
-    /// The segment size is calculated as the sum of the following:
-    /// 1. The static size of the partition table header (`0x20`).
-    /// 2. The total size of the partition table records (`num` records, each with a fixed size).
-    /// 3. The length of the user data (user bin).
-    ///
-    /// This method updates the `segment_size` field of the `header` in the partition table image.
-    pub fn build_segment_size(&mut self) {
+    /// - `u32`: The computed segment size.
+    fn build_segment_size(&self) -> u32 {
         // segment size is partition table static size + partition table records + user data length
         let new_size = (0x20
             + (self.pt.records.len() * Record::binary_size())
             + self.pt.user_bin.len()) as u32;
 
         // align size to 0x20
-        self.header.segment_size = new_size + (0x20 - (new_size % 0x20));
+        return new_size + (0x20 - (new_size % 0x20));
+    }
+
+     /// Computes the signature for the partition table image.
+    ///
+    /// This method generates the HMAC SHA-256 signature for the image using the provided key.
+    ///
+    /// # Arguments:
+    /// - `key`: The key used to compute the HMAC SHA-256 signature.
+    ///
+    /// # Returns:
+    /// - `Result<Vec<u8>, crate::error::Error>`: The computed signature as a vector of bytes.
+    fn build_signature(&self, key: &[u8]) -> Result<Vec<u8>, Error> {
+        let mut buffer =
+            vec![0xFF; 64 + ImageHeader::binary_size() + self.build_segment_size() as usize];
+        let mut writer = Cursor::new(&mut buffer);
+
+        self.keyblock.write_to(&mut writer)?;
+        self.header.write_to(&mut writer)?;
+        self.pt.write_to(&mut writer)?;
+
+        Ok(hmac_sha256(key, &buffer)?.to_vec())
+    }
+
+    /// Sets the signature for the partition table image.
+    ///
+    /// This method sets the signature in the image, typically after it has been calculated.
+    ///
+    /// # Arguments:
+    /// - `signature`: The signature to set in the image.
+    fn set_signature(&mut self, signature: &[u8]) {
+        self.hash.copy_from_slice(signature);
+    }
+
+    /// Sets the segment size for the partition table image.
+    ///
+    /// This method allows setting the segment size manually.
+    ///
+    /// # Arguments:
+    /// - `size`: The segment size to set.
+    fn set_segment_size(&mut self, size: u32) {
+        self.header.segment_size = size;
     }
 }
 
