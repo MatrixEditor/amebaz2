@@ -23,7 +23,7 @@ pub fn parse(cli: &Cli, file: PathBuf, pt_only: bool) -> Result<(), crate::error
             let flash: Flash = from_stream(&mut fp)?;
 
             if cli.verbose > 2 {
-                debug!("Finished parsing file: {}", file.display());
+                debug!(cli, "Finished parsing file: {}", file.display());
             }
 
             println!("{} {} {}", "*".repeat(42), "Flash".bold(), "*".repeat(42));

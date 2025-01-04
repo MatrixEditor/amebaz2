@@ -21,7 +21,7 @@ pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), crate::error::Error> {
     let image: OTAImage = from_stream(&mut fp)?;
 
     if cli.verbose > 2 {
-        debug!("Finished parsing file: {}", file.display());
+        debug!(cli, "Finished parsing file: {}", file.display());
     }
 
     dump_ota_image(&image, &mut fp)?;

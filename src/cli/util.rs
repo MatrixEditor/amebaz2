@@ -7,7 +7,7 @@ use super::Cli;
 
 pub fn open_file(cli: &Cli, file: PathBuf) -> Result<fs::File, ()> {
     if cli.verbose > 2 {
-        debug!("Reading file: {:#?}", file.display());
+        debug!(cli, "Reading file: {:#?}", file.display());
     }
 
     if !file.exists() {
