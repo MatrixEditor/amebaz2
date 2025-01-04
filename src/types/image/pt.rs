@@ -1,4 +1,4 @@
-use std::io::{self, Cursor};
+use std::io::{self, Cursor, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -15,7 +15,7 @@ use crate::{
     write_key, write_padding,
 };
 
-use super::AsImage;
+use super::{AsImage, EncryptedOr};
 
 /// Represents the configuration of a hardware trap.
 ///
@@ -227,9 +227,11 @@ impl FromStream for Record {
         // Check if the hash_key is valid (using a specific flag).
         if reader.read_u8()? & 0x1 != 0 {
             read_padding!(reader, 15);
-            self.hash_key = Some([0; 32]);
-            // Skip 15 bytes for alignment and then read the 32-byte hash_key.
-            reader.read_exact(&mut self.hash_key.unwrap())?;
+            let mut key = [0; 32];
+            reader.read_exact(&mut key)?;
+            if is_valid_key!(&key) {
+                self.hash_key = Some(key);
+            }
         } else {
             // Skip 47 bytes if the hash_key is not valid
             read_padding!(reader, 47);
@@ -271,15 +273,19 @@ impl ToStream for Record {
 ///
 /// # Layout:
 /// ```text
-///          +-----------------+------------------+----------+---------+-------------+-------------+---+---+---+---+-------+-------+-------+------+----+----------------+
-///          | 0               | 1                | 2        | 3       | 4           | 5           | 6 | 7 | 8 | 9 | 10    | 11    | 12    | 13   | 14 | 15             |
-/// +========+=================+==================+==========+=========+=============+=============+===+===+===+===+=======+=======+=======+======+====+================+
-/// | 0x00   | rma_w_state: u8 | rma_ov_state: u8 | eFWV: u8 | num: u8 | fw1_idx: u8 | fw2_idx: u8 |               | ota_trap: u16 | mp_trap: u16 |    | key_exp_op: u8 |
-/// +--------+-----------------+------------------+----------+---------+-------------+-------------+---------------+---------------+--------------+----+----------------+
-/// | 0x10   |                      user_len: u32                      |                                      user_ext: bytes[12]                                       |
-/// +--------+---------------------------------------------------------+------------------------------------------------------------------------------------------------+
-/// | 0x20   |                                                                  records: Record * num+1                                                                 |
-/// ~        ~                                                                                                                                                          ~
+///          +-----------------+------------------+---+----------+---------+-------------+-------------+---+---+---+-------+-------+-------+------+----+----------------+
+///          | 0               | 1                | 2 | 3        | 4       | 5           | 6           | 7 | 8 | 9 | 10    | 11    | 12    | 13   | 14 | 15             |
+/// +========+=================+==================+===+==========+=========+=============+=============+===+===+===+=======+=======+=======+======+====+================+
+/// | 0x00   | rma_w_state: u8 | rma_ov_state: u8 |   | eFWV: u8 | num: u8 | fw1_idx: u8 | fw2_idx: u8 |           | ota_trap: u16 | mp_trap: u16 |    | key_exp_op: u8 |
+/// +--------+-----------------+------------------+---+----------+---------+-------------+-------------+-----------+---------------+--------------+----+----------------+
+/// | 0x10   |                   user_len: u32                   |                                         user_ext: bytes[12]                                          |
+/// +--------+---------------------------------------------------+------------------------------------------------------------------------------------------------------+
+/// | 0x20   |                                                                  records: Record * num                                                                   |
+/// +--------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+/// | 0x30   |                                                                                                                                                          |
+/// +--------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+/// | 0x40   |                                                                                                                                                          |
+/// +--------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
 /// | 0x50   |                                                                                                                                                          |
 /// +--------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
 /// | 0x60   |                                                                user_bin: bytes[user_len]                                                                 |
@@ -364,11 +370,12 @@ impl FromStream for PartTab {
         self.rma_w_state = reader.read_u8()?;
         self.rma_ov_state = reader.read_u8()?;
         self.eFWV = reader.read_u8()?;
+        read_padding!(reader, 1);
 
         let num = reader.read_u8()? as u32;
         self.fw1_idx = reader.read_u8()?;
         self.fw2_idx = reader.read_u8()?;
-        read_padding!(reader, 4);
+        read_padding!(reader, 3);
 
         self.ota_trap = TrapConfig::from(reader.read_u16::<LittleEndian>()?);
         self.mp_trap = TrapConfig::from(reader.read_u16::<LittleEndian>()?);
@@ -405,11 +412,12 @@ impl ToStream for PartTab {
         writer.write_u8(self.rma_w_state)?;
         writer.write_u8(self.rma_ov_state)?;
         writer.write_u8(self.eFWV)?;
+        writer.write_u8(0x000)?;
 
         writer.write_u8((self.records.len() - 1) as u8)?;
         writer.write_u8(self.fw1_idx)?;
         writer.write_u8(self.fw2_idx)?;
-        write_padding!(writer, 4);
+        write_padding!(writer, 3);
 
         writer.write_u16::<LittleEndian>(self.ota_trap.into())?;
         writer.write_u16::<LittleEndian>(self.mp_trap.into())?;
@@ -443,7 +451,7 @@ impl ToStream for PartTab {
 pub struct PartitionTableImage {
     pub keyblock: KeyBlock,
     pub header: ImageHeader,
-    pub pt: PartTab,
+    pub pt: EncryptedOr<PartTab>,
     hash: [u8; 32],
 }
 
@@ -466,9 +474,12 @@ impl FromStream for PartitionTableImage {
 
         // Save the current position to determine the expected size later
         let start_pos = reader.stream_position()?;
-
-        self.pt.read_from(reader)?;
-
+        if self.header.is_encrypt {
+            self.pt = EncryptedOr::Encrypted(vec![0x00; self.header.segment_size as usize]);
+            self.pt.read_from(reader)?;
+        } else {
+            self.pt = EncryptedOr::Plain(from_stream(reader)?);
+        }
         let current_pos = reader.stream_position()?;
         let target_pos = start_pos + self.header.segment_size as u64;
 
@@ -476,7 +487,6 @@ impl FromStream for PartitionTableImage {
         if current_pos < target_pos {
             reader.seek(io::SeekFrom::Current((target_pos - current_pos) as i64))?;
         }
-
         reader.read_exact(&mut self.hash)?;
         Ok(())
     }
@@ -532,9 +542,13 @@ impl AsImage for PartitionTableImage {
     /// - `u32`: The computed segment size.
     fn build_segment_size(&self) -> u32 {
         // segment size is partition table static size + partition table records + user data length
-        let new_size = (0x20
-            + (self.pt.records.len() * Record::binary_size())
-            + self.pt.user_bin.len()) as u32;
+        let new_size = match &self.pt {
+            EncryptedOr::Encrypted(data) => data.len() as u32,
+            EncryptedOr::Plain(data) => {
+                (0x20 + ((data.records.len() + 1) * Record::binary_size()) + data.user_bin.len())
+                    as u32
+            }
+        };
 
         // align size to 0x20
         return new_size + (0x20 - (new_size % 0x20));
@@ -557,7 +571,6 @@ impl AsImage for PartitionTableImage {
         self.keyblock.write_to(&mut writer)?;
         self.header.write_to(&mut writer)?;
         self.pt.write_to(&mut writer)?;
-
         Ok(hmac_sha256(key.unwrap(), &buffer)?.to_vec())
     }
 
@@ -599,7 +612,7 @@ impl Default for PartitionTableImage {
         PartitionTableImage {
             keyblock: KeyBlock::default(),
             header: ImageHeader::default(),
-            pt: PartTab::default(),
+            pt: EncryptedOr::Plain(PartTab::default()),
             hash: [0xFF; 32],
         }
     }

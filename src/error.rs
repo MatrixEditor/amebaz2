@@ -10,6 +10,7 @@ pub enum Error {
     OpenSSLError(ErrorStack),
     UnsupportedHashAlgo(u8),
     NotImplemented(String),
+    InvalidState(String),
 }
 
 impl From<io::Error> for Error {

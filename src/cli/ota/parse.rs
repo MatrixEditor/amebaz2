@@ -1,12 +1,14 @@
 use colored::{Color, Colorize};
 use openssl::memcmp::eq;
-use std::io::Seek;
+use std::io::{Read, Seek};
 use std::path::PathBuf;
 
 use crate::cli::debug;
 use crate::cli::{util, Cli};
+use crate::keys::KEY_PAIR_003;
+use crate::types::header::ImageHeader;
 use crate::types::image::ota::{OTAImage, SubImage};
-use crate::types::{from_stream, HASH_KEY};
+use crate::types::{from_stream, BinarySize};
 
 #[allow(unused_variables)]
 pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), crate::error::Error> {
@@ -35,6 +37,10 @@ fn dump_ota_image(ota_image: &OTAImage, fp: &mut std::fs::File) -> Result<(), cr
     );
 
     println!("{}:", "Public Keys".bold());
+    println!(
+        "  [Hash Public Key] - {:?}",
+        hex::encode(ota_image.keyblock.get_hash_pubkey())
+    );
     for i in 0..5 {
         print!("  [{}] -  ", i);
         if let Some(key) = ota_image.get_public_key(i) {
@@ -52,7 +58,8 @@ fn dump_ota_image(ota_image: &OTAImage, fp: &mut std::fs::File) -> Result<(), cr
     if let Some(algo) = &ota_image.get_subimage(0).unwrap().fst.hash_algo {
         // signature starts at 224
         fp.seek(std::io::SeekFrom::Start(224))?;
-        let signature = OTAImage::ota_signature_from_stream(fp, *algo, Some(HASH_KEY))?;
+        let signature =
+            OTAImage::ota_signature_from_stream(fp, *algo, Some(KEY_PAIR_003.get_priv_key()))?;
         let image_signature = ota_image.get_ota_signature();
         print!("  - {:?} ", hex::encode(image_signature));
         if eq(&signature, image_signature) {
@@ -149,8 +156,25 @@ fn dump_subimage(
         let subimage_hash = subimage.get_hash();
         print!("    - {:?} ", hex::encode(subimage_hash));
 
-        fp.seek(std::io::SeekFrom::Start(offset))?;
-        let hash = subimage.signature_from_stream(fp, *hash_algo, Some(HASH_KEY))?;
+        let hash;
+        if offset == 224 {
+            fp.seek(std::io::SeekFrom::Start(0))?;
+            let mut buffer =
+                vec![
+                    0x00;
+                    ImageHeader::binary_size() + subimage.header.segment_size as usize + 224
+                ];
+            fp.read_exact(&mut buffer)?;
+            hash = hash_algo.compute_hash(&buffer, Some(KEY_PAIR_003.get_priv_key()))?
+        } else {
+            fp.seek(std::io::SeekFrom::Start(offset))?;
+            hash = subimage.signature_from_stream(
+                fp,
+                *hash_algo,
+                Some(KEY_PAIR_003.get_priv_key()),
+            )?;
+        }
+
         if eq(&hash, subimage_hash) {
             println!("{}", "OK".green());
         } else {

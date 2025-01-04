@@ -2,7 +2,7 @@ use crate::error::Error;
 
 use super::{Cli, OtaSubCommand};
 
-pub mod parse;
+mod parse;
 
 pub fn main(cli: &Cli, command: Option<&OtaSubCommand>) -> Result<(), Error> {
     match command {

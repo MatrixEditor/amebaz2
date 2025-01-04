@@ -31,13 +31,14 @@
 
 use std::{collections::HashMap, io};
 
-use crate::{error::Error, read_padding};
+use crate::{error::Error, read_padding, types::image::EncryptedOr};
 
 use super::{
     enums::PartitionType,
     from_stream,
     image::{
-        boot, ota,
+        boot,
+        ota::{self},
         pt::{self, Record},
         RawImage,
     },
@@ -110,6 +111,10 @@ impl Partition {
             PartitionType::Var => Ok(Partition::Var(Self::read_raw_image(reader, record.length)?)),
             PartitionType::MP => Ok(Partition::Mp(Self::read_raw_image(reader, record.length)?)),
             PartitionType::Rdp => Ok(Partition::Reserved),
+            PartitionType::Unknown => Err(Error::InvalidEnumValue(format!(
+                "Invalid partition type: {:?}",
+                record.part_type
+            ))),
         }
     }
 }
@@ -205,11 +210,12 @@ impl FromStream for Flash {
         read_padding!(reader, 16);
 
         let pt_image: pt::PartitionTableImage = from_stream(reader)?;
-        for record in pt_image.pt.get_records() {
-            reader.seek(io::SeekFrom::Start(record.start_addr as u64))?;
-            self.set_partition(record.part_type, Partition::from_record(record, reader)?);
+        if let EncryptedOr::Plain(pt) = &pt_image.pt {
+            for record in pt.get_records() {
+                reader.seek(io::SeekFrom::Start(record.start_addr as u64))?;
+                self.set_partition(record.part_type, Partition::from_record(record, reader)?);
+            }
         }
-
         self.set_partition(PartitionType::PartTab, Partition::PartitionTable(pt_image));
         Ok(())
     }

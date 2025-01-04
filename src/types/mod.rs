@@ -3,15 +3,11 @@ use std::io;
 use crate::error::Error;
 
 pub mod enums;
+pub mod flash;
 pub mod fst;
 pub mod header;
 pub mod image;
 pub mod section;
-pub mod flash;
-
-pub const HASH_KEY: &[u8; 32] =
-    b"G\xe5f\x135\xa4\xc5\xe0\xa9Mi\xf3\xc77\xd5O#\x83y\x132\x93\x97S\xef$'\x96\x08\xf6\xd7+";
-
 
 /// `KeyType` is a type alias for an optional fixed-size array of `u8` bytes.
 ///

@@ -382,9 +382,11 @@ impl HashAlgo {
 /// # Variants
 /// - `PartTab`: Partition table (0).
 /// - `Boot`: Boot partition (1).
-/// - `Fw1`: Firmware partition 1 (2).
-/// - `Fw2`: Firmware partition 2 (3).
-/// - `Sys`: System partition (4).
+/// - `Sys`: System partition (2).
+///
+/// - `Fw1`: Firmware partition 1.
+/// - `Fw2`: Firmware partition 2.
+
 /// - `Cal`: Calibration partition (5).
 /// - `User`: User data partition (6).
 /// - `Var`: Variable partition (7).
@@ -405,22 +407,27 @@ pub enum PartitionType {
     PartTab = 0,
     /// Boot partition (1).
     Boot,
-    /// Firmware partition 1 (2).
-    Fw1,
-    /// Firmware partition 2 (3).
-    Fw2,
+
     /// System partition (4).
     Sys,
     /// Calibration partition (5).
     Cal,
     /// User data partition (6).
     User,
+
+    /// Firmware partition 1 (2).
+    Fw1,
+    /// Firmware partition 2 (3).
+    Fw2,
+
     /// Variable partition (7).
     Var,
     /// Main partition (8).
     MP,
     /// Reserved partition (9).
     Rdp,
+
+    Unknown = 10,
 }
 
 impl TryFrom<u8> for PartitionType {
@@ -442,14 +449,15 @@ impl TryFrom<u8> for PartitionType {
         match value {
             0 => Ok(PartitionType::PartTab),
             1 => Ok(PartitionType::Boot),
-            2 => Ok(PartitionType::Fw1),
-            3 => Ok(PartitionType::Fw2),
-            4 => Ok(PartitionType::Sys),
-            5 => Ok(PartitionType::Cal),
-            6 => Ok(PartitionType::User),
+            2 => Ok(PartitionType::Sys),
+            3 => Ok(PartitionType::Cal),
+            4 => Ok(PartitionType::User),
+            5 => Ok(PartitionType::Fw1),
+            6 => Ok(PartitionType::Fw2),
             7 => Ok(PartitionType::Var),
             8 => Ok(PartitionType::MP),
             9 => Ok(PartitionType::Rdp),
+            10 => Ok(PartitionType::Unknown),
             _ => Err(Error::InvalidEnumValue(format!(
                 "Invalid partition type: {}",
                 value

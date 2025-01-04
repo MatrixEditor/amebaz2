@@ -202,9 +202,7 @@ impl SubImage {
     where
         R: io::Read + io::Seek,
     {
-        let mut buffer =
-            Vec::with_capacity(ImageHeader::binary_size() + self.header.segment_size as usize);
-
+        let mut buffer = vec![0x00; ImageHeader::binary_size() + self.header.segment_size as usize];
         reader.read_exact(&mut buffer)?;
         algo.compute_hash(&buffer, key)
     }
@@ -500,7 +498,7 @@ impl OTAImage {
     where
         R: io::Read + io::Seek,
     {
-        let mut buffer = Vec::with_capacity(ImageHeader::binary_size());
+        let mut buffer = vec![0x00; ImageHeader::binary_size()];
         reader.read_exact(&mut buffer)?;
         algo.compute_hash(&buffer, key)
     }
@@ -543,6 +541,7 @@ impl OTAImage {
         Ok(OTAImage::checksum_from_buffer(&buffer[..&buffer.len() - 4]))
     }
 }
+
 impl FromStream for OTAImage {
     /// Reads an `OTAImage` from a binary stream.
     ///

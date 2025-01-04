@@ -42,6 +42,9 @@ pub enum FlashSubCommand {
     Parse {
         #[arg(value_name = "FILE")]
         file: Option<PathBuf>,
+
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        pt_only: bool,
     },
 }
 

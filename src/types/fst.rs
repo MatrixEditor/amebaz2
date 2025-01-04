@@ -1,5 +1,5 @@
 use super::{enums::*, BinarySize, FromStream, KeyRefType, KeyType, ToStream};
-use crate::{error::Error, is_valid_key, read_padding, write_padding, util::write_fill};
+use crate::{error::Error, is_valid_key, read_padding, util::write_fill, write_padding};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 
@@ -164,11 +164,13 @@ impl FromStream for FST {
         if reader.read_u8()? & 0b1 == 1 {
             // keys are valid
             reader.seek(std::io::SeekFrom::Current(10))?;
-            self.cipher_key = Some([0; 32]);
-            self.cipher_iv = Some([0; 16]);
-            reader.read_exact(&mut self.cipher_key.unwrap())?; // 32 bytes
-            reader.read_exact(&mut self.cipher_iv.unwrap())?; // 16 bytes
+            let mut key = [0; 32];
+            let mut iv = [0; 16];
+            reader.read_exact(&mut key)?; // 32 bytes
+            reader.read_exact(&mut iv)?; // 16 bytes
 
+            self.cipher_key = Some(key);
+            self.cipher_iv = Some(iv);
             // align to 96
             read_padding!(reader, 16);
         } else {

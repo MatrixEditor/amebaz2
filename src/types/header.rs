@@ -529,10 +529,13 @@ impl FromStream for SectionHeader {
         read_padding!(reader, 7);
 
         if sce_key_iv_valid {
-            self.xip_key = Some([0; 16]);
-            self.xip_iv = Some([0; 16]);
-            reader.read_exact(&mut self.xip_key.unwrap())?;
-            reader.read_exact(&mut self.xip_iv.unwrap())?;
+            let mut key = [0; 16];
+            let mut iv = [0; 16];
+            reader.read_exact(&mut key)?;
+            reader.read_exact(&mut iv)?;
+
+            self.xip_key = Some(key);
+            self.xip_iv = Some(iv);
             // Align to 96 bytes (by skipping 32 bytes)
             read_padding!(reader, 32);
         } else {

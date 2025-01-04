@@ -4,33 +4,38 @@ use std::{io::Seek, path::PathBuf};
 
 use crate::{
     cli::{debug, util, Cli},
-    read_padding,
+    keys::{HASH_KEY, KEY_PAIR_000, KEY_PAIR_001, KEY_PAIR_003},
     types::{
         enums::PartitionType,
         flash::{Flash, Partition},
         from_stream,
-        image::pt::PartitionTableImage,
-        HASH_KEY,
+        image::{pt::PartitionTableImage, EncryptedOr},
     },
 };
 
-pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), crate::error::Error> {
+pub fn parse(cli: &Cli, file: PathBuf, pt_only: bool) -> Result<(), crate::error::Error> {
     if let Ok(mut fp) = util::open_file(cli, file.clone()) {
-        let flash: Flash = from_stream(&mut fp)?;
+        if pt_only {
+            fp.seek(std::io::SeekFrom::Start(32))?;
+            let pt_image: PartitionTableImage = from_stream(&mut fp)?;
+            dump_partition_table(&pt_image, &mut fp)?;
+        } else {
+            let flash: Flash = from_stream(&mut fp)?;
 
-        if cli.verbose > 2 {
-            debug!("Finished parsing file: {}", file.display());
-        }
+            if cli.verbose > 2 {
+                debug!("Finished parsing file: {}", file.display());
+            }
 
-        println!("{} {} {}", "*".repeat(42), "Flash".bold(), "*".repeat(42));
+            println!("{} {} {}", "*".repeat(42), "Flash".bold(), "*".repeat(42));
 
-        println!("{}:", "Calibration Pattern".bold());
-        println!("  - {:?}\n", hex::encode(&flash.get_calibration_pattern()));
+            println!("{}:", "Calibration Pattern".bold());
+            println!("  - {:?}\n", hex::encode(&flash.get_calibration_pattern()));
 
-        if let Some(Partition::PartitionTable(partition_table)) =
-            flash.get_partition(PartitionType::PartTab)
-        {
-            dump_partition_table(partition_table, &mut fp)?;
+            if let Some(Partition::PartitionTable(partition_table)) =
+                flash.get_partition(PartitionType::PartTab)
+            {
+                dump_partition_table(partition_table, &mut fp)?;
+            }
         }
     }
 
@@ -53,7 +58,23 @@ fn dump_partition_table(
 
     println!("{}:", "Public Keys".bold());
     println!("  [0] - {:?}", hex::encode(enc_pubkey));
+    if eq(enc_pubkey, KEY_PAIR_000.get_pub_key()) {
+        println!(
+            "        {}",
+            "Note: this partition table uses the default encryption key"
+                .yellow()
+                .italic()
+        );
+    }
     println!("  [1] - {:?}", hex::encode(hash_pubkey));
+    if eq(hash_pubkey, KEY_PAIR_001.get_pub_key()) {
+        println!(
+            "        {}",
+            "Note: this partition table uses the default hash key"
+                .yellow()
+                .italic()
+        );
+    }
 
     println!(
         "\n{}: ({})",
@@ -71,35 +92,54 @@ fn dump_partition_table(
         println!("{}", "invalid/encrypted/wrong key".red().italic());
     }
 
-    println!("\n{}: ", "User Data".bold());
-    println!(
-        "  - {}: {:?} ",
-        "UserExt",
-        hex::encode(pt_image.pt.get_user_ext())
-    );
-
-    print!("  - {}: ", "UserBin");
-    let user_bin = pt_image.pt.get_user_bin();
-    if user_bin.len() > 0 {
-        println!("{}, length={}", "valid".color(Color::Green), user_bin.len());
-    } else {
-        println!("{}", "<not set>".color(Color::Yellow).italic());
-    }
-
-    println!("\n{}: ", "Records".bold());
-    let records = pt_image.pt.get_records();
-    for (i, record) in records.iter().enumerate() {
+    if let EncryptedOr::Plain(pt) = &pt_image.pt {
+        println!("\n{}: ", "User Data".bold());
         println!(
-            "  [{}] - Type: {:?} (offset: 0x{:06x}, 0xlength: {:06x})",
-            i, record.part_type, record.start_addr, record.length
+            "  - {}: {:?} ",
+            "UserExt",
+            hex::encode(pt.get_user_ext())
         );
-        print!("      - HashKey: ");
-        if let Some(key) = record.get_hash_key() {
-            println!("{:?}", hex::encode(key));
+
+        print!("  - {}: ", "UserBin");
+        let user_bin = pt.get_user_bin();
+        if user_bin.len() > 0 {
+            println!("{}, length={}", "valid".color(Color::Green), user_bin.len());
         } else {
-            println!("{}", "<not set>".italic().red());
+            println!("{}", "<not set>".color(Color::Yellow).italic());
+        }
+
+        println!("  - Fw1 Index: {}", pt.fw1_idx);
+        println!("  - Fw2 Index: {}", pt.fw2_idx);
+
+        println!("\n{}: ", "Records".bold());
+        let records = pt.get_records();
+        for (i, record) in records.iter().enumerate() {
+            println!(
+                "  [{}] - Type: {:?} (offset: 0x{:06x}, 0xlength: {:06x})",
+                i, record.part_type, record.start_addr, record.length
+            );
+            print!("      - HashKey: ");
+            if let Some(key) = record.get_hash_key() {
+                println!("{:?}", hex::encode(key));
+                if eq(key, KEY_PAIR_003.get_priv_key()) {
+                    println!(
+                        "        {}",
+                        "Note: this partition uses a default hash key"
+                            .yellow()
+                            .italic()
+                    );
+                }
+            } else {
+                println!("{}", "<not set>".italic().red());
+            }
+            println!()
         }
     }
+    else {
+        println!("\n{}: {}", "SegmentData".bold(), "encrypted".red().italic());
+    }
+
+
     println!("{}\n", "=".repeat(91));
 
     Ok(())
