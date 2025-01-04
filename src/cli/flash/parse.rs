@@ -94,11 +94,7 @@ fn dump_partition_table(
 
     if let EncryptedOr::Plain(pt) = &pt_image.pt {
         println!("\n{}: ", "User Data".bold());
-        println!(
-            "  - {}: {:?} ",
-            "UserExt",
-            hex::encode(pt.get_user_ext())
-        );
+        println!("  - {}: {:?} ", "UserExt", hex::encode(pt.get_user_ext()));
 
         print!("  - {}: ", "UserBin");
         let user_bin = pt.get_user_bin();
@@ -115,7 +111,7 @@ fn dump_partition_table(
         let records = pt.get_records();
         for (i, record) in records.iter().enumerate() {
             println!(
-                "  [{}] - Type: {:?} (offset: 0x{:06x}, 0xlength: {:06x})",
+                "  [{}] - Type: {:?} (offset: 0x{:06x}, length: 0x{:06x})",
                 i, record.part_type, record.start_addr, record.length
             );
             print!("      - HashKey: ");
@@ -134,11 +130,9 @@ fn dump_partition_table(
             }
             println!()
         }
-    }
-    else {
+    } else {
         println!("\n{}: {}", "SegmentData".bold(), "encrypted".red().italic());
     }
-
 
     println!("{}\n", "=".repeat(91));
 
