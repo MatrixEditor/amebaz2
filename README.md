@@ -7,6 +7,11 @@ Open Source Implementation of OTA and Flash Generation for the AmebaZ2 SDK in Ru
 
 *Documentation and usage information are a work in progress!*
 
+Features:
+
+* Parse OTA and Flash images (w/ extraction support)
+* [_**Relink**_](#relinking) existing OTA images back to their compiled application binary (ELF) 🎊
+
 
 ## Usage
 
@@ -16,6 +21,8 @@ Currently, there are two main functionalities:
 - `flash`: Work with complete flash images.
 
 ### OTA
+
+#### Parsing
 
 The current implementation allows parsing and verification of images:
 
@@ -58,6 +65,67 @@ Sections:
   [0] - SRAM (length: 0x00002a20, load: 0x10000480, entry: 0x10000480)
 ----------------------------------------------------------------------------------------------------
 [...]
+```
+
+#### Relinking
+
+*Currently searching for the appropriate wording, but relinking seems to describe the process very well.*
+
+Based on the information from the OTA we can *relink* all sections back to a valid ELF binary using the
+power of [gimli-rs/object](https://github.com/gimli-rs/object).
+
+```bash
+amebazii ota relink -s ./section_data --cap-length ./assets/fw1.bin ./fw1.elf
+```
+
+The output will be something similar to this:
+```text
+RAM/FHWS:
+  [0] Secion: SRAM
+      - RAM function table... OK
+      - RAM image signature... OK
+      - DTCM RAM... OK
+XIP:
+  [0] Secion: XIP_C
+      - XIP code cipher section... OK
+  [1] Secion: XIP_P
+      - XIP code plaintext section (rodata)... OK
+      - RAM vector table... OK
+
+Program Headers:
+  Type  Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align   Info
+  LOAD  0x000000 0x00000000 0x00000000 0x71b38 0x71b38 R   0x10000 Standard sections
+  LOAD  0x010000 0x10000000 0x10000000 0x000a0 0x000a0 RW  0x10000 RAM vector table
+  LOAD  0x010480 0x10000480 0x10000480 0x00070 0x00070 RW  0x10000 RAM function table
+  LOAD  0x0104f0 0x100004f0 0x100004f0 0x00010 0x00010 R   0x10000 RAM image signature
+  LOAD  0x010500 0x10000500 0x10000500 0x02980 0x02980 RWE 0x10000 RAM text and rodata
+  LOAD  0x04fa00 0x9b000140 0x9b000140 0x53768 0x53768 RWE 0x10000 XIP.C rodata, text
+  LOAD  0x84f8c0 0x9b800140 0x9b800140 0x1e3d0 0x1e3d0 RW  0x10000 XIP.P rodata, text
+```
+
+> [!NOTE]
+> Even though, one could put that file into Ghidra and start inspecting the code,
+> it won't load all segments correctly --> WIP. The current workaround is to add
+> each segment manually (taken from section dumps) using File > Add To Program.
+> The virtual address is the image base address of each section in Ghidra.
+
+#### Extraction
+
+You can also dump each subimage manually by using `dump`:
+
+```bash
+amebazii ota dump ./assets/fw1.bin -I [INDEX] [--section INDEX] [OUTDIR/FILE]
+```
+
+Only specifying the subimage index will dump all sections within that subimage to the
+given destination directory. Using the extra option `--section` you can dump a specific
+section to an output file.
+
+For example:
+```bash
+$ amebazii ota dump ./assets/fw1.bin -I 0 --section 0 ./test.bin
+[0] Subimage: FHWSS
+    [0] Section: SRAM (Length: 0x00002a20, LoadAddress: 0x10000480, EntryAddress: 0x10000480)
 ```
 
 ### Flash

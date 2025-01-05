@@ -8,4 +8,5 @@ byteorder = "1.5.0"
 clap = { version = "4.5.23", features = ["derive"] }
 colored = "2.2.0"
 hex = "0.4.3"
+object = { version = "0.36.7", features = ["build", "write"] }
 openssl = "0.10.68"
