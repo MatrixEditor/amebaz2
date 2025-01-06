@@ -37,7 +37,10 @@
 //                     .
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{self, Cursor};
+use std::{
+    io::{self, Cursor},
+    vec,
+};
 
 use crate::{
     error::Error,
@@ -54,7 +57,7 @@ use crate::{
     write_aligned, write_key, write_padding,
 };
 
-use super::AsImage;
+use super::{AsImage, EncryptedOr};
 
 /// Represents a sub-image, including a header, FST (Firmware Security Table), sections, and hash for integrity verification.
 ///
@@ -66,10 +69,10 @@ pub struct SubImage {
 
     // REVISIT: this struct does not cover the use-case of an encrypted sub-image!!
     /// The Firmware Security Table (FST) associated with the sub-image.
-    pub fst: FST,
+    pub fst: EncryptedOr<FST>,
 
     /// The collection of sections in the sub-image.
-    sections: Vec<Section>,
+    sections: EncryptedOr<Vec<Section>>,
 
     /// The hash of the sub-image used for integrity verification.
     hash: [u8; 32],
@@ -86,8 +89,8 @@ impl Default for SubImage {
     fn default() -> Self {
         SubImage {
             header: ImageHeader::default(),
-            fst: FST::default(),
-            sections: Vec::new(),
+            fst: EncryptedOr::Plain(FST::default()),
+            sections: EncryptedOr::Plain(Vec::new()),
             hash: [0xFF; 32],
         }
     }
@@ -111,7 +114,10 @@ impl SubImage {
     /// - A reference to the `Vec<Section>` representing the sections in the sub-image.
     ///
     pub fn get_sections(&self) -> &[Section] {
-        &self.sections
+        match &self.sections {
+            EncryptedOr::Plain(sections) => sections,
+            EncryptedOr::Encrypted(_) => panic!("SubImage is encrypted"),
+        }
     }
 
     /// Returns a mutable reference to the sections in the sub-image.
@@ -123,7 +129,10 @@ impl SubImage {
     /// - A mutable reference to the `Vec<Section>` representing the sections in the sub-image.
     ///
     pub fn get_sections_mut(&mut self) -> &mut [Section] {
-        &mut self.sections
+        match &mut self.sections {
+            EncryptedOr::Plain(sections) => sections,
+            EncryptedOr::Encrypted(_) => panic!("SubImage is encrypted"),
+        }
     }
 
     /// Adds a new section to the sub-image.
@@ -134,7 +143,10 @@ impl SubImage {
     /// - `section`: The section to add to the sub-image.
     ///
     pub fn add_section(&mut self, section: Section) {
-        self.sections.push(section);
+        match &mut self.sections {
+            EncryptedOr::Plain(sections) => sections.push(section),
+            EncryptedOr::Encrypted(_) => panic!("SubImage is encrypted"),
+        }
     }
 
     /// Removes the section at the specified index from the sub-image.
@@ -146,7 +158,10 @@ impl SubImage {
     /// - `index`: The index of the section to remove.
     ///
     pub fn rem_section_at(&mut self, index: usize) {
-        self.sections.remove(index);
+        match &mut self.sections {
+            EncryptedOr::Plain(sections) => sections.remove(index),
+            EncryptedOr::Encrypted(_) => panic!("SubImage is encrypted"),
+        };
     }
 
     /// Returns a reference to the section at the specified index, if it exists.
@@ -161,7 +176,10 @@ impl SubImage {
     /// - `Option<&Section>`: `Some(section)` if the section exists, or `None` if the index is out of bounds.
     ///
     pub fn get_section(&self, index: usize) -> Option<&Section> {
-        self.sections.get(index)
+        match &self.sections {
+            EncryptedOr::Plain(sections) => sections.get(index),
+            EncryptedOr::Encrypted(_) => panic!("SubImage is encrypted"),
+        }
     }
 
     /// Returns a mutable reference to the section at the specified index, if it exists.
@@ -176,7 +194,10 @@ impl SubImage {
     /// - `Option<&mut Section>`: `Some(section)` if the section exists, or `None` if the index is out of bounds.
     ///
     pub fn get_section_mut(&mut self, index: usize) -> Option<&mut Section> {
-        self.sections.get_mut(index)
+        match &mut self.sections {
+            EncryptedOr::Plain(sections) => sections.get_mut(index),
+            EncryptedOr::Encrypted(_) => panic!("SubImage is encrypted"),
+        }
     }
 
     /// Reads the signature for this `SubImage` from a binary stream and computes its hash.
@@ -233,11 +254,13 @@ impl AsImage for SubImage {
     fn build_segment_size(&self) -> u32 {
         // Segment size does not include the hash or image padding
         FST::binary_size() as u32
-            + self
-                .sections
-                .iter()
-                .map(Section::build_aligned_size)
-                .sum::<u32>()
+            + match &self.sections {
+                EncryptedOr::Plain(sections) => sections
+                    .iter()
+                    .map(Section::build_aligned_size)
+                    .sum::<u32>(),
+                EncryptedOr::Encrypted(sections_data) => sections_data.len() as u32,
+            }
     }
 
     /// Build the signature for the SubImage.
@@ -253,18 +276,22 @@ impl AsImage for SubImage {
     /// - `Ok(Vec<u8>)`: The signature as a byte vector.
     /// - `Err(Error)`: An error if signature calculation fails (e.g., unsupported hash algorithm).
     fn build_signature(&self, key: Option<&[u8]>) -> Result<Vec<u8>, crate::error::Error> {
+        let hash_algo = match &self.fst {
+            // TODO: what should we use in case of an encrypted FST?
+            EncryptedOr::Encrypted(_) => Some(HashAlgo::Sha256),
+            EncryptedOr::Plain(fst) => fst.hash_algo,
+        };
+
         let mut buffer = vec![0u8; ImageHeader::binary_size() + self.build_segment_size() as usize];
         let mut writer = Cursor::new(&mut buffer);
 
         // Write the header, FST, and sections to the buffer.
         self.header.write_to(&mut writer)?;
         self.fst.write_to(&mut writer)?;
-        for section in &self.sections {
-            section.write_to(&mut writer)?;
-        }
+        self.sections.write_to(&mut writer)?;
 
         // Compute the hash using the FST's hash algorithm.
-        match &self.fst.hash_algo {
+        match hash_algo {
             Some(algo) => Ok(algo.compute_hash(&buffer, key)?.to_vec()),
             None => Err(Error::NotImplemented(
                 "SubImage::build_signature".to_string(),
@@ -283,15 +310,28 @@ impl FromStream for SubImage {
         R: io::Read + io::Seek,
     {
         self.header.read_from(reader)?;
-        self.fst.read_from(reader)?;
+        if self.header.is_encrypt {
+            self.fst = EncryptedOr::Encrypted(vec![0; FST::binary_size() as usize]);
+            self.fst.read_from(reader)?;
 
-        loop {
-            let section: Section = from_stream(reader)?;
-            let has_next = section.header.has_next();
-            self.sections.push(section);
-            if !has_next {
-                break;
+            let mut sections =
+                vec![0; self.header.segment_size as usize - FST::binary_size() as usize];
+            reader.read_exact(&mut sections)?;
+            self.sections = EncryptedOr::Encrypted(sections);
+        } else {
+            self.fst.read_from(reader)?;
+
+            let mut sections = Vec::new();
+            loop {
+                let section: Section = from_stream(reader)?;
+                let has_next = section.header.has_next();
+
+                sections.push(section);
+                if !has_next {
+                    break;
+                }
             }
+            self.sections = EncryptedOr::Plain(sections);
         }
 
         reader.read_exact(&mut self.hash)?;
@@ -312,10 +352,7 @@ impl ToStream for SubImage {
     {
         self.header.write_to(writer)?;
         self.fst.write_to(writer)?;
-
-        for section in &self.sections {
-            section.write_to(writer)?;
-        }
+        self.sections.write_to(writer)?;
         writer.write_all(&self.hash)?;
 
         let align = if self.header.has_next() { 0x4000 } else { 0x40 };
@@ -456,15 +493,21 @@ impl OTAImage {
         //
         // the key is the hash key from the partition table record for this image
         if let Some(subimage) = self.get_subimage(0) {
-            if let Some(algo) = &subimage.fst.hash_algo {
-                let mut writer = Cursor::new(&mut buffer);
-                subimage.header.write_to(&mut writer)?;
-                return algo.compute_hash(&buffer, key);
-            } else {
-                return Err(Error::NotImplemented(
-                    "OTAImage::build_ota_signature: subimage[0].fst.hash_algo is None".to_string(),
-                ));
+            if let EncryptedOr::Plain(fst) = &subimage.fst {
+                if let Some(algo) = &fst.hash_algo {
+                    let mut writer = Cursor::new(&mut buffer);
+                    subimage.header.write_to(&mut writer)?;
+                    return algo.compute_hash(&buffer, key);
+                } else {
+                    return Err(Error::NotImplemented(
+                        "OTAImage::build_ota_signature: subimage[0].fst.hash_algo is None"
+                            .to_string(),
+                    ));
+                }
             }
+            return Err(Error::NotImplemented(
+                "OTAImage::build_ota_signature: subimage[0].fst is encrypted".to_string(),
+            ));
         }
 
         Err(Error::NotImplemented(

@@ -123,6 +123,23 @@ impl<T: ToStream> ToStream for EncryptedOr<T> {
     }
 }
 
+impl<T: ToStream> ToStream for EncryptedOr<Vec<T>> {
+    fn write_to<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: io::Write + io::Seek,
+    {
+        match self {
+            EncryptedOr::Encrypted(v) => writer.write_all(v)?,
+            EncryptedOr::Plain(t) => {
+                for item in t {
+                    item.write_to(writer)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl<T: FromStream> FromStream for EncryptedOr<T> {
     /// Reads the data from a stream, either encrypted or plain.
     ///
