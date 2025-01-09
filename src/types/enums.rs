@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     error::Error,
     util::{hmac_md5, hmac_sha256, md5, sha256},
@@ -10,7 +12,7 @@ use crate::{
 /// type for unknown image types.
 ///
 /// However, note that *image type* refers to the `SubImage` of the firmware image.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum ImageType {
     Parttab,
@@ -102,7 +104,7 @@ impl TryFrom<u8> for ImageType {
 /// # Error Handling
 /// If the provided value doesn't correspond to a known section type, an error
 /// (`Error::UnknownSectionType`) will be returned.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum SectionType {
     DTCM = 0x80,
@@ -163,9 +165,10 @@ impl TryFrom<u8> for SectionType {
 /// - `_16K`: Represents a 16 KB page size (0).
 /// - `_32K`: Represents a 32 KB page size (1).
 /// - `_64K`: Represents a 64 KB page size (2).
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 #[repr(u8)]
 pub enum XipPageRemapSize {
+    #[default]
     _16K = 0,
     _32K,
     _64K,
@@ -235,7 +238,7 @@ impl XipPageRemapSize {
 /// - `Ecb`: Electronic Codebook mode encryption (0).
 /// - `Cbc`: Cipher Block Chaining mode encryption (1).
 /// - `Other`: Represents other custom or unsupported encryption algorithms (0xFF).
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[repr(u16)]
 pub enum EncryptionAlgo {
     Ecb,
@@ -297,7 +300,7 @@ impl TryFrom<u16> for EncryptionAlgo {
 /// let algo = HashAlgo::try_from(1).unwrap();
 /// assert_eq!(algo, HashAlgo::Sha256); // Successfully converts to Sha256.
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[repr(u16)]
 pub enum HashAlgo {
     Md5 = 0x00,
@@ -400,7 +403,7 @@ impl HashAlgo {
 /// let part = PartitionType::try_from(1).unwrap();
 /// assert_eq!(part, PartitionType::Boot); // Successfully converts to Boot partition.
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum PartitionType {
     /// Partition table (0).
@@ -479,10 +482,11 @@ impl TryFrom<u8> for PartitionType {
 /// - `Latest`: Only export the latest key (1).
 /// - `Both`: Export both the latest and previous keys (2).
 ///
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 #[repr(u8)]
 pub enum KeyExportOp {
     /// No key export operation (0).
+    #[default]
     None = 0,
     /// Export the latest key (1).
     Latest,
@@ -510,6 +514,117 @@ impl TryFrom<u8> for KeyExportOp {
                 "Invalid key export type: {}",
                 value
             ))),
+        }
+    }
+}
+
+/// Represents different flash sizes based on the corresponding size codes.
+///
+/// This enum defines the possible flash sizes, each represented by a specific
+/// 16-bit value. The sizes range from 2MB to 1MB, with different values for each
+/// size. The default value corresponds to a 2MB flash size.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Default)]
+#[repr(u16)]
+pub enum FlashSize {
+    #[default]
+    Size_2M = 0xFFFF,
+    Size_32M = 0x7FFF,
+    Size_16M = 0x3FFF,
+    Size_8M = 0x1FFF,
+    Size_4M = 0x0FFF,
+    Size_1M = 0x07FF,
+}
+
+impl From<u16> for FlashSize {
+    /// Converts a 16-bit value into a `FlashSize` enum.
+    ///
+    /// # Arguments:
+    /// - `value`: A 16-bit unsigned integer representing a flash size.
+    ///
+    /// # Returns:
+    /// - The corresponding `FlashSize` enum variant.
+    fn from(value: u16) -> Self {
+        match value {
+            0xFFFF => FlashSize::Size_2M,
+            0x7FFF => FlashSize::Size_32M,
+            0x3FFF => FlashSize::Size_16M,
+            0x1FFF => FlashSize::Size_8M,
+            0x0FFF => FlashSize::Size_4M,
+            0x07FF => FlashSize::Size_1M,
+            _ => FlashSize::Size_2M,
+        }
+    }
+}
+
+/// Represents different SPI I/O modes used for communication with flash memory.
+///
+/// This enum defines the supported SPI I/O modes for flash memory. These modes
+/// control how data is transferred between the device and the memory. The default
+/// value is `Quad_IO`, which uses four data lines for transfer.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Default)]
+#[repr(u16)]
+pub enum SpiIOMode {
+    #[default]
+    Quad_IO = 0xFFFF,
+    Quad_Output = 0x7FFF,
+    Dual_IO = 0x3FFF,
+    Dual_Output = 0x1FFF,
+    One_IO = 0x0FFF,
+}
+
+impl From<u16> for SpiIOMode {
+     /// Converts a 16-bit value into a `SpiIOMode` enum.
+    ///
+    /// # Arguments:
+    /// - `value`: A 16-bit unsigned integer representing an SPI I/O mode.
+    ///
+    /// # Returns:
+    /// - The corresponding `SpiIOMode` enum variant.
+    fn from(value: u16) -> Self {
+        match value {
+            0xFFFF => SpiIOMode::Quad_IO,
+            0x7FFF => SpiIOMode::Quad_Output,
+            0x3FFF => SpiIOMode::Dual_IO,
+            0x1FFF => SpiIOMode::Dual_Output,
+            0x0FFF => SpiIOMode::One_IO,
+            _ => SpiIOMode::Quad_IO,
+        }
+    }
+}
+
+/// Represents different SPI clock speeds for communication with flash memory.
+///
+/// This enum defines the supported SPI speeds for flash memory communication.
+/// The speeds range from 100MHz down to 25MHz, with 100MHz being the default.
+///
+/// C Structure:
+/// - [hal_sys_ctrl.h#L94](https://github.com/Ameba-AIoT/ameba-rtos-z2/blob/302d27d3a393e7ef3739d94d0bb0cf2a4c9bc40d/component/soc/realtek/8710c/fwlib/include/hal_sys_ctrl.h#L94)
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Default)]
+#[repr(u16)]
+pub enum SpiSpeed {
+    #[default]
+    _100MHz = 0xFFFF,
+    _50MHz = 0x7FFF,
+    _25MHz = 0x3FFF,
+}
+
+
+impl From<u16> for SpiSpeed {
+    /// Converts a 16-bit value into a `SpiSpeed` enum.
+    ///
+    /// # Arguments:
+    /// - `value`: A 16-bit unsigned integer representing an SPI clock speed.
+    ///
+    /// # Returns:
+    /// - The corresponding `SpiSpeed` enum variant.
+    fn from(value: u16) -> Self {
+        match value {
+            0xFFFF => SpiSpeed::_100MHz,
+            0x7FFF => SpiSpeed::_50MHz,
+            0x3FFF => SpiSpeed::_25MHz,
+            _ => SpiSpeed::_100MHz,
         }
     }
 }

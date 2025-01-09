@@ -38,7 +38,7 @@ struct ElfData<'d> {
 }
 
 pub fn relink(cli: &Cli, options: &Options) -> Result<(), crate::error::Error> {
-    let fp = util::open_file(cli, options.infile.clone());
+    let fp = util::open_file(cli, options.infile.clone(), None);
     if fp.is_err() {
         return Ok(());
     }

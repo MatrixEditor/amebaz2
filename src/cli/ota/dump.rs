@@ -13,7 +13,7 @@ pub fn dump_sections(
     outfile: PathBuf,
     section: Option<u32>,
 ) -> Result<(), crate::error::Error> {
-    let fp = util::open_file(cli, file.clone());
+    let fp = util::open_file(cli, file.clone(), None);
     if fp.is_err() {
         return Ok(());
     }

@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub fn split_flash(cli: &Cli, file: PathBuf, outdir: PathBuf) -> Result<(), crate::error::Error> {
-    let fp = util::open_file(cli, file);
+    let fp = util::open_file(cli, file, None);
     if fp.is_err() {
         return Ok(());
     }

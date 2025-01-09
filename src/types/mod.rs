@@ -35,6 +35,70 @@ pub mod section;
 /// - Implements `Option`, meaning it can be `Some` containing a key or `None` for a missing key.
 pub type KeyType<const N: usize> = Option<[u8; N]>;
 
+/// Converts a hexadecimal string into a `KeyType` array.
+///
+/// This function takes a hexadecimal string (`hexstr`), decodes it into bytes,
+/// and then attempts to convert the bytes into a `KeyType` of a specific size.
+///
+/// The size of the resulting `KeyType` is determined by the constant `N`. This function
+/// will panic if the length of the decoded byte array does not match the expected size `N`.
+///
+/// # Type Parameters:
+/// - `N`: The size of the `KeyType` array. This is a constant array length that the decoded
+///   hexadecimal string must match. It is passed at compile-time to ensure type safety.
+///
+/// # Arguments:
+/// - `hexstr`: A string containing the hexadecimal representation of the key. The string must
+///   contain an even number of characters (each representing a byte).
+///
+/// # Returns:
+/// - `Some(KeyType<N>)`: A `KeyType` array of size `N`, constructed from the decoded bytes.
+///   Returns `None` if the hexadecimal string is empty or the decoded bytes do not match the expected length.
+///
+/// # Panics:
+/// - This function will panic if the length of the decoded byte array is not equal to `N`.
+///
+/// # Example:
+/// ```
+/// let hexstr = "a1b2c3d4e5f67890";
+/// let key = key_from_hex::<8>(hexstr);
+/// assert_eq!(key, Some([0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 0x78, 0x90]));
+/// ```
+pub fn key_from_hex<const N: usize>(hexstr: &str) -> KeyType<N> {
+    let bytes = hex::decode(hexstr).unwrap();
+    assert!(bytes.len() == N);
+    Some(bytes.try_into().unwrap())
+}
+
+/// Converts a `KeyType` array into a hexadecimal string.
+///
+/// This function takes a `KeyType` array (`key`) and converts it into its corresponding
+/// hexadecimal string representation. If the key is `None`, it returns `None`.
+///
+/// # Type Parameters:
+/// - `N`: The size of the `KeyType` array. This is a constant array length that ensures type safety.
+///
+/// # Arguments:
+/// - `key`: A reference to a `KeyType` array of size `N`. This is the key to be encoded into a
+///   hexadecimal string. It must be a valid key array of the appropriate size.
+///
+/// # Returns:
+/// - `Some(String)`: The hexadecimal string representation of the key if the key is `Some`.
+///   Returns `None` if the key is `None`.
+///
+/// # Example:
+/// ```
+/// let key = Some([0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 0x78, 0x90]);
+/// let hexstr = key_to_hex(key);
+/// assert_eq!(hexstr, Some("a1b2c3d4e5f67890".to_string()));
+/// ```
+pub fn key_to_hex<const N: usize>(key: KeyRefType<N>) -> Option<String> {
+    match key {
+        None => None,                        // If the key is None, return None.
+        Some(key) => Some(hex::encode(key)), // Otherwise, convert the key to a hex string and return.
+    }
+}
+
 /// `KeyRefType` is a type alias for an optional reference to a fixed-size array of `u8` bytes.
 ///
 /// This type is similar to `KeyType`, but instead of owning the key, it holds a reference
@@ -240,9 +304,9 @@ macro_rules! write_aligned {
         let pos = $writer.stream_position()?;
         let padding = $size - (pos % $size);
         if padding > 4096 {
-            write_fill($writer, $fill, $size as u64)?;
+            write_fill($writer, $fill, padding as u64)?;
         } else {
-            $writer.write_all(&vec![$fill; $size as usize])?;
+            $writer.write_all(&vec![$fill; padding as usize])?;
         }
     };
 }

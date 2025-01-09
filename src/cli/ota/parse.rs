@@ -13,7 +13,7 @@ use crate::types::{from_stream, BinarySize};
 
 #[allow(unused_variables)]
 pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), crate::error::Error> {
-    let file_reader = util::open_file(cli, file.clone());
+    let file_reader = util::open_file(cli, file.clone(), None);
     if file_reader.is_err() {
         return Ok(());
     }

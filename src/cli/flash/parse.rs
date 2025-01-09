@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub fn parse(cli: &Cli, file: PathBuf, pt_only: bool) -> Result<(), crate::error::Error> {
-    if let Ok(mut fp) = util::open_file(cli, file.clone()) {
+    if let Ok(mut fp) = util::open_file(cli, file.clone(), None) {
         if pt_only {
             fp.seek(std::io::SeekFrom::Start(32))?;
             let pt_image: PartitionTableImage = from_stream(&mut fp)?;

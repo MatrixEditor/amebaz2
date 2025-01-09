@@ -1,6 +1,7 @@
 use std::io::{self, Cursor};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     error::Error,
@@ -44,18 +45,22 @@ use super::{AsImage, EncryptedOr};
 ///
 /// The packing and unpacking logic allows easy conversion between the `TrapConfig` struct
 /// and a single 16-bit integer, which is useful for hardware register manipulation.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct TrapConfig {
     /// Whether the trap configuration is valid (1 bit).
+    #[serde(default)]
     pub valid: bool,
 
     /// The level of the trap (1 bit, 0 or 1).
+    #[serde(default)]
     pub level: u8,
 
     /// The port number (3 bits, value range: 0-7).
+    #[serde(default)]
     pub port: u8,
 
     /// The pin number (5 bits, value range: 0-31).
+    #[serde(default)]
     pub pin: u8,
 }
 
@@ -257,6 +262,7 @@ impl ToStream for Record {
 
         write_padding!(writer, 6);
         writer.write_u8(self.hash_key_valid() as u8)?;
+        write_padding!(writer, 15);
         write_key!(writer, self.hash_key, 32);
         Ok(())
     }
@@ -354,6 +360,30 @@ impl PartTab {
     pub fn get_user_ext(&self) -> &[u8] {
         return &self.user_ext;
     }
+
+    /// Sets the user binary data in the partition table.
+    ///
+    /// # Arguments:
+    /// - `user_bin`: A slice of bytes representing the new user binary data to store.
+    pub fn set_user_bin(&mut self, user_bin: &[u8]) {
+        self.user_bin.extend_from_slice(user_bin);
+    }
+
+    /// Sets the user extension data in the partition table.
+    ///
+    /// # Arguments:
+    /// - `user_ext`: A slice of bytes representing the new user extension data (12 bytes).
+    pub fn set_user_ext(&mut self, user_ext: &[u8]) {
+        self.user_ext.copy_from_slice(user_ext);
+    }
+
+    /// Adds a new partition record to the partition table.
+    ///
+    /// # Arguments:
+    /// - `record`: The `Record` struct that defines the new partition entry to add.
+    pub fn add_record(&mut self, record: Record) {
+        self.records.push(record);
+    }
 }
 
 impl FromStream for PartTab {
@@ -414,6 +444,9 @@ impl ToStream for PartTab {
         writer.write_u8(self.eFWV)?;
         writer.write_u8(0x000)?;
 
+        if self.records.is_empty() {
+            return Err(Error::InvalidState("Empty partition table".to_string()));
+        }
         writer.write_u8((self.records.len() - 1) as u8)?;
         writer.write_u8(self.fw1_idx)?;
         writer.write_u8(self.fw2_idx)?;

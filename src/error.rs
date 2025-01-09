@@ -11,6 +11,7 @@ pub enum Error {
     UnsupportedHashAlgo(u8),
     NotImplemented(String),
     InvalidState(String),
+    SerdeJSONError(serde_json::Error),
 }
 
 impl From<io::Error> for Error {
@@ -22,5 +23,11 @@ impl From<io::Error> for Error {
 impl From<ErrorStack> for Error {
     fn from(err: ErrorStack) -> Self {
         Error::OpenSSLError(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error::SerdeJSONError(err)
     }
 }
