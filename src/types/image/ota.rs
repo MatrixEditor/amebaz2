@@ -44,17 +44,17 @@ use std::{
 
 use crate::{
     error::Error,
-    is_valid_key,
+    is_valid_data,
     types::{
         enums::HashAlgo,
         from_stream,
         fst::FST,
         header::{ImageHeader, KeyBlock},
         section::Section,
-        BinarySize, FromStream, KeyRefType, KeyType, ToStream,
+        BinarySize, FromStream, DataRefType, DataType, ToStream,
     },
     util::{skip_aligned, write_fill},
-    write_aligned, write_key, write_padding,
+    write_aligned, write_data, write_padding,
 };
 
 use super::{AsImage, EncryptedOr};
@@ -376,7 +376,7 @@ pub struct OTAImage {
     pub keyblock: KeyBlock,
 
     /// Public keys (up to 5) used for signature verification.
-    public_keys: [KeyType<32>; 5],
+    public_keys: [DataType<32>; 5],
 
     /// A collection of subimages contained in the OTA image.
     subimages: Vec<SubImage>,
@@ -467,7 +467,7 @@ impl OTAImage {
     ///
     /// # Returns:
     /// - A reference to the public key at the specified index, if it exists.
-    pub fn get_public_key(&self, index: u8) -> KeyRefType<32> {
+    pub fn get_public_key(&self, index: u8) -> DataRefType<32> {
         return self.public_keys[index as usize].as_ref();
     }
 }
@@ -607,7 +607,7 @@ impl FromStream for OTAImage {
         for i in 0..5 {
             let mut key = [0x00; 32];
             reader.read_exact(&mut key)?;
-            if is_valid_key!(&key) {
+            if is_valid_data!(&key) {
                 self.public_keys[i] = Some(key);
             }
         }
@@ -642,7 +642,7 @@ impl ToStream for OTAImage {
     {
         self.keyblock.write_to(writer)?;
         for key in &self.public_keys {
-            write_key!(writer, key, 32);
+            write_data!(writer, key, 32);
         }
         for subimage in &self.subimages {
             subimage.write_to(writer)?;

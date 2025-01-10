@@ -8,8 +8,9 @@ pub mod fst;
 pub mod header;
 pub mod image;
 pub mod section;
+pub mod sysctrl;
 
-/// `KeyType` is a type alias for an optional fixed-size array of `u8` bytes.
+/// `DataType` is a type alias for an optional fixed-size array of `u8` bytes.
 ///
 /// This type represents an optional key where the key is an array of `u8` of a fixed size,
 /// defined by the constant generic parameter `N`. If the key is not present, the type
@@ -20,8 +21,8 @@ pub mod section;
 ///
 /// # Example:
 /// ```rust
-/// // KeyType with a key of length 4 bytes
-/// let key: KeyType<4> = Some([1, 2, 3, 4]);
+/// // DataType with a key of length 4 bytes
+/// let key: DataType<4> = Some([1, 2, 3, 4]);
 /// ```
 ///
 /// ## Fields:
@@ -33,18 +34,18 @@ pub mod section;
 ///
 /// # Traits Implemented:
 /// - Implements `Option`, meaning it can be `Some` containing a key or `None` for a missing key.
-pub type KeyType<const N: usize> = Option<[u8; N]>;
+pub type DataType<const N: usize> = Option<[u8; N]>;
 
-/// Converts a hexadecimal string into a `KeyType` array.
+/// Converts a hexadecimal string into a `DataType` array.
 ///
 /// This function takes a hexadecimal string (`hexstr`), decodes it into bytes,
-/// and then attempts to convert the bytes into a `KeyType` of a specific size.
+/// and then attempts to convert the bytes into a `DataType` of a specific size.
 ///
-/// The size of the resulting `KeyType` is determined by the constant `N`. This function
+/// The size of the resulting `DataType` is determined by the constant `N`. This function
 /// will panic if the length of the decoded byte array does not match the expected size `N`.
 ///
 /// # Type Parameters:
-/// - `N`: The size of the `KeyType` array. This is a constant array length that the decoded
+/// - `N`: The size of the `DataType` array. This is a constant array length that the decoded
 ///   hexadecimal string must match. It is passed at compile-time to ensure type safety.
 ///
 /// # Arguments:
@@ -52,7 +53,7 @@ pub type KeyType<const N: usize> = Option<[u8; N]>;
 ///   contain an even number of characters (each representing a byte).
 ///
 /// # Returns:
-/// - `Some(KeyType<N>)`: A `KeyType` array of size `N`, constructed from the decoded bytes.
+/// - `Some(DataType<N>)`: A `DataType` array of size `N`, constructed from the decoded bytes.
 ///   Returns `None` if the hexadecimal string is empty or the decoded bytes do not match the expected length.
 ///
 /// # Panics:
@@ -64,22 +65,22 @@ pub type KeyType<const N: usize> = Option<[u8; N]>;
 /// let key = key_from_hex::<8>(hexstr);
 /// assert_eq!(key, Some([0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 0x78, 0x90]));
 /// ```
-pub fn key_from_hex<const N: usize>(hexstr: &str) -> KeyType<N> {
+pub fn key_from_hex<const N: usize>(hexstr: &str) -> DataType<N> {
     let bytes = hex::decode(hexstr).unwrap();
     assert!(bytes.len() == N);
     Some(bytes.try_into().unwrap())
 }
 
-/// Converts a `KeyType` array into a hexadecimal string.
+/// Converts a `DataType` array into a hexadecimal string.
 ///
-/// This function takes a `KeyType` array (`key`) and converts it into its corresponding
+/// This function takes a `DataType` array (`key`) and converts it into its corresponding
 /// hexadecimal string representation. If the key is `None`, it returns `None`.
 ///
 /// # Type Parameters:
-/// - `N`: The size of the `KeyType` array. This is a constant array length that ensures type safety.
+/// - `N`: The size of the `DataType` array. This is a constant array length that ensures type safety.
 ///
 /// # Arguments:
-/// - `key`: A reference to a `KeyType` array of size `N`. This is the key to be encoded into a
+/// - `key`: A reference to a `DataType` array of size `N`. This is the key to be encoded into a
 ///   hexadecimal string. It must be a valid key array of the appropriate size.
 ///
 /// # Returns:
@@ -92,29 +93,28 @@ pub fn key_from_hex<const N: usize>(hexstr: &str) -> KeyType<N> {
 /// let hexstr = key_to_hex(key);
 /// assert_eq!(hexstr, Some("a1b2c3d4e5f67890".to_string()));
 /// ```
-pub fn key_to_hex<const N: usize>(key: KeyRefType<N>) -> Option<String> {
+pub fn key_to_hex<const N: usize>(key: DataRefType<N>) -> Option<String> {
     match key {
         None => None,                        // If the key is None, return None.
         Some(key) => Some(hex::encode(key)), // Otherwise, convert the key to a hex string and return.
     }
 }
 
-/// `KeyRefType` is a type alias for an optional reference to a fixed-size array of `u8` bytes.
+/// `DataRefType` is a type alias for an optional reference to a fixed-size array of `u8` bytes.
 ///
-/// This type is similar to `KeyType`, but instead of owning the key, it holds a reference
+/// This type is similar to `DataType`, but instead of owning the key, it holds a reference
 /// to a fixed-size array of `u8` bytes, which is useful when the key data is borrowed
 /// rather than owned. It is also parameterized by a constant generic `N`, allowing different
 /// sizes of keys to be used with a single type.
 ///
-/// `KeyRefType` is typically used when the key is stored elsewhere in memory, and you want
+/// `DataRefType` is typically used when the key is stored elsewhere in memory, and you want
 /// to reference it without copying or taking ownership of the data. This is useful for
 /// scenarios where the key data already exists and you need to work with it without
 /// transferring ownership.
 ///
 /// # Example:
 /// ```rust
-/// // KeyRefType with a reference to a 4-byte key
-/// let key_ref: KeyRefType<4> = Some(&[1, 2, 3, 4]);
+/// let key_ref: DataRefType<4> = Some(&[1, 2, 3, 4]);
 /// ```
 ///
 /// ## Fields:
@@ -126,32 +126,67 @@ pub fn key_to_hex<const N: usize>(key: KeyRefType<N>) -> Option<String> {
 ///
 /// # Traits Implemented:
 /// - Implements `Option`, meaning it can be `Some` containing a reference to a key or `None` for a missing key
-pub type KeyRefType<'a, const N: usize> = Option<&'a [u8; N]>;
+pub type DataRefType<'a, const N: usize> = Option<&'a [u8; N]>;
 
-/// Checks if a given key is valid.
+/// Checks if the given data is valid by ensuring none of the bytes are equal to `0xFF`.
+///
+/// This macro checks if all elements in the provided data are non-`0xFF`.
 ///
 /// # Parameters
-/// - `$key`: The key to check, which is expected to be an iterable collection (e.g., a slice or array).
+/// - `$key`: The key or data collection to check, which must be an iterable type (e.g., a slice or array).
 ///
 /// # Returns
-/// - `true` if all bytes in the key are not equal to `0xFF`.
-/// - `false` if any byte in the key is equal to `0xFF`.
+/// - `true` if no byte in the data is `0xFF`.
+/// - `false` if any byte in the data is `0xFF`.
 ///
 /// # Example
 /// ```rust
 /// let key = [0x01, 0x02, 0x03, 0x04, 0x05];
-/// assert!(is_valid_key!(key)); // All bytes are non-0xFF, so it's valid.
+/// assert!(is_valid_data!(key)); // All bytes are non-0xFF, so it's valid.
 ///
 /// let invalid_key = [0xFF, 0xFF, 0xFF, 0xFF];
-/// assert!(!is_valid_key!(invalid_key)); // Contains only 0xFF bytes, so it's invalid.
+/// assert!(!is_valid_data!(invalid_key)); // Contains only 0xFF bytes, so it's invalid.
 /// ```
 #[macro_export]
-macro_rules! is_valid_key {
+macro_rules! is_valid_data {
     ($key:expr) => {
-        // Iterates over the key and checks if any byte is equal to 0xFF.
-        $key.iter().all(|&x| x != 0xFF)
+        $key.iter().any(|&x| x != 0xFF)
     };
 }
+
+/// Reads valid data from the reader into the target, ensuring that the data does not contain any `0xFF` bytes.
+///
+/// This macro attempts to read a specific amount of data from a reader, checks if the data is valid
+/// (i.e., it does not contain any `0xFF` bytes), and if valid, assigns the data to the provided target.
+///
+/// # Parameters
+/// - `$target`: The target variable where the data will be stored (of type `Option<[u8; $length]>`).
+/// - `$length`: The length of the data to read (must match the expected size of the data).
+/// - `$reader`: The reader from which the data will be read. The reader must implement the `Read` trait.
+///
+/// # Example
+/// ```rust
+/// let mut reader: &[u8] = &[0x01, 0x02, 0x03, 0x04, 0x05];
+/// let mut target: Option<[u8; 5]> = None;
+/// read_valid_data!(target, 5, reader);
+/// assert!(target.is_some()); // The data read is valid, so target should be Some([0x01, 0x02, 0x03, 0x04, 0x05]).
+/// ```
+///
+/// # Error Handling
+/// - If the data contains any `0xFF` byte, it will not be assigned to the target.
+/// - The macro expects the reader to support reading the exact number of bytes as specified by `$length`.
+/// - This macro will return an error if the reader cannot fulfill the request.
+#[macro_export]
+macro_rules! read_valid_data {
+    ($target:expr, $length:expr, $reader:expr) => {
+        let mut buf = [0u8; $length];
+        $reader.read_exact(&mut buf)?;
+        if !is_valid_data!(buf) {
+            $target = Some(buf);
+        }
+    };
+}
+
 
 /// `write_padding!` - A macro to write padding bytes to a writer.
 ///
@@ -204,7 +239,7 @@ macro_rules! write_padding {
     };
 }
 
-/// Write a key to a stream with padding support.
+/// Writes data to a stream.
 ///
 /// This macro writes the key to the stream if it is present. If the key is `None`,
 /// the macro writes padding instead, ensuring the correct number of bytes is always written.
@@ -218,10 +253,10 @@ macro_rules! write_padding {
 /// ```rust
 /// let mut buffer = Vec::new();
 /// let key: Option<[u8; 10]> = Some([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-/// write_key!(buffer, key, 10);
+/// write_data!(buffer, key, 10);
 /// ```
 #[macro_export]
-macro_rules! write_key {
+macro_rules! write_data {
     // Case when the key is present: writes the key to the writer
     ($writer:expr, $key:expr, $len:literal) => {
         if let Some(key) = &$key {

@@ -1,5 +1,3 @@
-use std::fs;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,6 +8,8 @@ use crate::{
         key_from_hex,
     },
 };
+
+use super::DataArray;
 
 /// Represents a single item in the partition table configuration.
 ///
@@ -93,8 +93,8 @@ pub struct PartitionTableCfg {
     #[serde(default)]
     pub key_exp_op: KeyExportOp,
 
-    pub user_ext: Option<String>,
-    pub user_bin: Option<String>,
+    pub user_ext: Option<DataArray<12>>,
+    pub user_bin: Option<DataArray<256>>,
 
     pub items: Vec<PartitionItemCfg>,
 }
@@ -103,10 +103,6 @@ impl TryInto<PartTab> for PartitionTableCfg {
     type Error = crate::error::Error;
 
     /// Converts a `PartitionTableCfg` instance into a `PartTab` instance.
-    ///
-    /// This method converts all relevant fields from the `PartitionTableCfg` struct into
-    /// a `PartTab` struct, including handling the user extension data and binary data
-    /// from external files (if provided).
     ///
     /// # Returns:
     /// - `Ok(PartTab)`: A `PartTab` instance with the appropriate values set.
@@ -129,20 +125,12 @@ impl TryInto<PartTab> for PartitionTableCfg {
         }
 
         if let Some(user_ext) = &self.user_ext {
-            if fs::exists(&user_ext)? {
-                pt.set_user_ext(&fs::read(&user_ext)?);
-            } else {
-                expect_length!(&user_ext, 24);
-                if let Some(value) = key_from_hex::<12>(user_ext) {
-                    pt.set_user_ext(&value);
-                }
-            }
+            expect_length!(&user_ext.data, 24);
+            pt.set_user_ext(&user_ext.data);
         }
 
         if let Some(user_bin) = &self.user_bin {
-            if fs::exists(&user_bin)? {
-                pt.set_user_bin(&fs::read(&user_bin)?);
-            }
+            pt.set_user_bin(&user_bin.data);
         }
 
         for item in self.items {

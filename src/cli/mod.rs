@@ -11,6 +11,7 @@ mod headings {
     pub const CONFIG_GEN_OPTIONS: &str = "Config Generation Options";
     pub const BUILD_OPTIONS: &str = "Build Options";
     pub const ADDRESS_OPTIONS: &str = "Address Options";
+    pub const SYSDATA_OPTIONS: &str = "SystemData Options";
 }
 
 /// AmebaZ2 Tools to work with OTA and flash images
@@ -197,6 +198,13 @@ pub enum BuildSubCommand {
         #[command(flatten)]
         options: Option<BuildPartitionTableOptions>,
     },
+
+    /// Builds the system data partition
+    #[command(arg_required_else_help = true)]
+    Sysdata {
+        #[command(flatten)]
+        options: Option<BuildSystemDataOptions>,
+    }
 }
 
 #[derive(Parser)]
@@ -310,6 +318,67 @@ pub struct BuildPartitionTableOptions {
     #[clap(verbatim_doc_comment)]
     #[arg(long, help_heading = headings::PARTTAB_OPTIONS)]
     pub user_bin: Option<String>,
+}
+
+#[derive(Parser)]
+#[clap(verbatim_doc_comment)]
+pub struct BuildSystemDataOptions {
+    /// Output file path where the system data will be saved.
+    ///
+    /// Specifies the path to the file where the generated system data
+    /// will be written.
+    #[clap(verbatim_doc_comment)]
+    #[arg(value_name = "FILE")]
+    pub file: Option<PathBuf>,
+
+    /// Path to a configuration file.
+    ///
+    /// Specifies the path to a configuration file that will
+    /// be used when building the system data.
+    #[clap(verbatim_doc_comment)]
+    #[arg(short, long, value_name = "CFG", value_hint = clap::ValueHint::FilePath)]
+    pub config: Option<PathBuf>,
+
+    /// Address for OTA2 (Over-the-Air update) system.
+    ///
+    /// Allows specifying a custom address for OTA2 data.
+    #[clap(verbatim_doc_comment)]
+    #[arg(long, help_heading = headings::SYSDATA_OPTIONS)]
+    pub ota2_address: Option<u32>,
+
+    /// Size of the OTA2 data.
+    ///
+    /// Specifies the size of the OTA2 data that will be used.
+    /// It is usually provided as a 32-bit unsigned integer.
+    #[clap(verbatim_doc_comment)]
+    #[arg(long, help_heading = headings::SYSDATA_OPTIONS)]
+    pub ota2_size: Option<u32>,
+
+    /// Baud rate for the ULOG (Universal Log) system.
+    ///
+    /// Sets the baud rate for the ULOG communication interface.
+    #[clap(verbatim_doc_comment)]
+    #[arg(long, help_heading = headings::SYSDATA_OPTIONS)]
+    pub ulog_baud: Option<u32>,
+
+    /// SPI calibration settings as a string.
+    ///
+    /// Provides the SPI calibration settings in string format,
+    /// which may be used to configure the system for specific
+    /// SPI communication requirements.
+    #[clap(verbatim_doc_comment)]
+    #[arg(long, help_heading = headings::SYSDATA_OPTIONS, value_name = "FILE/DATA")]
+    pub spic_setting: Option<String>,
+
+    /// BT parameter data.
+    #[clap(verbatim_doc_comment)]
+    #[arg(long, help_heading = headings::SYSDATA_OPTIONS, value_name = "FILE/DATA")]
+    pub bt_parameter_data: Option<String>,
+
+    /// Flag to generate a configuration file.
+    #[clap(verbatim_doc_comment)]
+    #[arg(short = 'G', long, value_name = "CFG", help_heading = headings::CONFIG_GEN_OPTIONS)]
+    pub generate_config: Option<PathBuf>,
 }
 
 /// Macro for printing debug messages with formatting.

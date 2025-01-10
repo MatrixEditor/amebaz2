@@ -4,16 +4,9 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::Error,
-    is_valid_key, read_padding,
-    types::{
-        enums::{KeyExportOp, PartitionType},
-        from_stream,
-        header::{ImageHeader, KeyBlock},
-        BinarySize, FromStream, KeyRefType, KeyType, ToStream,
-    },
-    util::{hmac_sha256, write_fill},
-    write_key, write_padding,
+    error::Error, is_valid_data, read_padding, read_valid_data, types::{
+        enums::{KeyExportOp, PartitionType}, from_stream, header::{ImageHeader, KeyBlock}, BinarySize, DataRefType, DataType, FromStream, ToStream
+    }, util::{hmac_sha256, write_fill}, write_data, write_padding
 };
 
 use super::{AsImage, EncryptedOr};
@@ -144,7 +137,7 @@ pub struct Record {
     pub dbg_skip: bool,
 
     /// A 32-byte hash key associated with this partition. By default, it's invalid
-    hash_key: KeyType<32>,
+    hash_key: DataType<32>,
 }
 
 impl BinarySize for Record {
@@ -188,12 +181,12 @@ impl Record {
     pub fn hash_key_valid(&self) -> bool {
         match &self.hash_key {
             None => false,
-            Some(key) => is_valid_key!(key), // checks key validity using the macro
+            Some(key) => is_valid_data!(key), // checks key validity using the macro
         }
     }
 
     /// Returns a reference to the `hash_key`.
-    pub fn get_hash_key(&self) -> KeyRefType<32> {
+    pub fn get_hash_key(&self) -> DataRefType<32> {
         self.hash_key.as_ref()
     }
 
@@ -202,7 +195,7 @@ impl Record {
     /// # Arguments:
     /// - `key`: A reference to a 32-byte array slice that represents the new `hash_key`.
     ///   If `None` is passed, the `hash_key` will be cleared.
-    pub fn set_hash_key(&mut self, key: KeyType<32>) {
+    pub fn set_hash_key(&mut self, key: DataType<32>) {
         self.hash_key = key;
     }
 }
@@ -232,11 +225,7 @@ impl FromStream for Record {
         // Check if the hash_key is valid (using a specific flag).
         if reader.read_u8()? & 0x1 != 0 {
             read_padding!(reader, 15);
-            let mut key = [0; 32];
-            reader.read_exact(&mut key)?;
-            if is_valid_key!(&key) {
-                self.hash_key = Some(key);
-            }
+            read_valid_data!(self.hash_key, 32, reader);
         } else {
             // Skip 47 bytes if the hash_key is not valid
             read_padding!(reader, 47);
@@ -263,7 +252,7 @@ impl ToStream for Record {
         write_padding!(writer, 6);
         writer.write_u8(self.hash_key_valid() as u8)?;
         write_padding!(writer, 15);
-        write_key!(writer, self.hash_key, 32);
+        write_data!(writer, self.hash_key, 32);
         Ok(())
     }
 }

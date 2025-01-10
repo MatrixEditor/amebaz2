@@ -1,3 +1,4 @@
+use hex::FromHexError;
 use openssl::error::ErrorStack;
 use std::io;
 
@@ -29,5 +30,17 @@ impl From<ErrorStack> for Error {
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
         Error::SerdeJSONError(err)
+    }
+}
+
+impl From<FromHexError> for Error {
+    fn from(err: FromHexError) -> Self {
+        Error::InvalidState(err.to_string())
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }

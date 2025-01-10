@@ -1,5 +1,5 @@
-use super::{enums::*, BinarySize, FromStream, KeyRefType, KeyType, ToStream};
-use crate::{error::Error, is_valid_key, read_padding, util::write_fill, write_padding};
+use super::{enums::*, BinarySize, FromStream, DataRefType, DataType, ToStream};
+use crate::{error::Error, is_valid_data, read_padding, util::write_fill, write_padding};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 
@@ -47,8 +47,8 @@ pub struct FST {
     pub partition_size: u32,
     valid_pattern: [u8; 8],
 
-    cipher_key: KeyType<32>,
-    cipher_iv: KeyType<16>,
+    cipher_key: DataType<32>,
+    cipher_iv: DataType<16>,
 }
 
 impl Default for FST {
@@ -87,7 +87,7 @@ impl FST {
     /// - `false`: If either the cipher key or IV is not set or invalid.
     pub fn is_cipher_key_iv_valid(&self) -> bool {
         match (&self.cipher_key, &self.cipher_iv) {
-            (Some(key), Some(iv)) => is_valid_key!(key) && is_valid_key!(iv),
+            (Some(key), Some(iv)) => is_valid_data!(key) && is_valid_data!(iv),
             _ => false,
         }
     }
@@ -111,7 +111,7 @@ impl FST {
     ///     // Handle valid cipher key
     /// }
     /// ```
-    pub fn get_cipher_key(&self) -> KeyRefType<32> {
+    pub fn get_cipher_key(&self) -> DataRefType<32> {
         return self.cipher_key.as_ref();
     }
 
@@ -119,7 +119,7 @@ impl FST {
     ///
     /// # Returns:
     /// An `Option` containing a reference to the 16-byte cipher IV.
-    pub fn get_cipher_iv(&self) -> KeyRefType<16> {
+    pub fn get_cipher_iv(&self) -> DataRefType<16> {
         return self.cipher_iv.as_ref();
     }
 }

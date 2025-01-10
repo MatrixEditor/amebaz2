@@ -2,11 +2,14 @@ use std::io;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use crate::{error::Error, is_valid_key, read_padding, util::write_fill, write_key, write_padding};
+use crate::{
+    error::Error, is_valid_data, read_padding, read_valid_data, util::write_fill, write_data,
+    write_padding,
+};
 
 use super::{
     enums::{ImageType, SectionType, XipPageRemapSize},
-    BinarySize, FromStream, KeyRefType, KeyType, ToStream,
+    BinarySize, DataRefType, DataType, FromStream, ToStream,
 };
 
 /// A struct representing the key block with two public keys:
@@ -91,7 +94,7 @@ impl KeyBlock {
     /// - `true` if the encryption public key is valid.
     /// - `false` if the encryption public key is invalid.
     pub fn is_enc_pubkey_valid(&self) -> bool {
-        is_valid_key!(&self.enc_pubkey)
+        is_valid_data!(&self.enc_pubkey)
     }
 
     /// Checks if the hash public key is valid.
@@ -100,7 +103,7 @@ impl KeyBlock {
     /// - `true` if the hash public key is valid.
     /// - `false` if the hash public key is invalid.
     pub fn is_hash_pubkey_valid(&self) -> bool {
-        is_valid_key!(&self.hash_pubkey)
+        is_valid_data!(&self.hash_pubkey)
     }
 
     /// Retrieves the encryption public key.
@@ -186,10 +189,10 @@ pub struct ImageHeader {
     pub serial: u32,
 
     /// User key 1, used for encryption
-    pub user_key1: KeyType<32>,
+    pub user_key1: DataType<32>,
 
     /// User key 2, used for encryption
-    pub user_key2: KeyType<32>,
+    pub user_key2: DataType<32>,
 }
 
 impl Default for ImageHeader {
@@ -313,8 +316,8 @@ impl ToStream for ImageHeader {
         write_padding!(writer, 8);
 
         // If key1 is valid, write user_key1 (32 bytes), otherwise write padding
-        write_key!(writer, self.user_key1, 32);
-        write_key!(writer, self.user_key2, 32);
+        write_data!(writer, self.user_key1, 32);
+        write_data!(writer, self.user_key2, 32);
         Ok(())
     }
 }
@@ -365,7 +368,7 @@ impl ImageHeader {
     ///
     /// # Returns
     /// A reference to the `user_key1` array (32 bytes).
-    pub fn get_user_key1(&self) -> KeyRefType<32> {
+    pub fn get_user_key1(&self) -> DataRefType<32> {
         self.user_key1.as_ref()
     }
 
@@ -373,7 +376,7 @@ impl ImageHeader {
     ///
     /// # Returns
     /// A reference to the `user_key2` array (32 bytes).
-    pub fn get_user_key2(&self) -> KeyRefType<32> {
+    pub fn get_user_key2(&self) -> DataRefType<32> {
         self.user_key2.as_ref()
     }
 }
@@ -443,13 +446,13 @@ pub struct SectionHeader {
     /// This is a 16-byte key used during the XIP process. If encryption is enabled for the section,
     /// this key is used for decryption. The default value is an array of `0xFF` bytes, indicating an
     /// invalid key by default.
-    xip_key: KeyType<16>,
+    xip_key: DataType<16>,
 
     /// The initialization vector (IV) used for XIP encryption.
     ///
     /// This is a 16-byte initialization vector (IV) used in conjunction with the `xip_key` during XIP
     /// encryption operations. As with the key, it is initialized to an invalid value of `0xFF` bytes.
-    xip_iv: KeyType<16>,
+    xip_iv: DataType<16>,
 }
 
 impl BinarySize for SectionHeader {
@@ -529,13 +532,8 @@ impl FromStream for SectionHeader {
         read_padding!(reader, 7);
 
         if sce_key_iv_valid {
-            let mut key = [0; 16];
-            let mut iv = [0; 16];
-            reader.read_exact(&mut key)?;
-            reader.read_exact(&mut iv)?;
-
-            self.xip_key = Some(key);
-            self.xip_iv = Some(iv);
+            read_valid_data!(self.xip_key, 16, reader);
+            read_valid_data!(self.xip_iv, 16, reader);
             // Align to 96 bytes (by skipping 32 bytes)
             read_padding!(reader, 32);
         } else {
@@ -574,8 +572,8 @@ impl ToStream for SectionHeader {
         writer.write_u8(self.xip_key_iv_valid() as u8)?;
         writer.write_all(&[0xFF; 7])?;
 
-        write_key!(writer, self.xip_key, 16);
-        write_key!(writer, self.xip_iv, 16);
+        write_data!(writer, self.xip_key, 16);
+        write_data!(writer, self.xip_iv, 16);
         Ok(())
     }
 }
@@ -601,7 +599,7 @@ impl SectionHeader {
 
     /// Checks if both the `xip_key` and `xip_iv` fields are valid.
     ///
-    /// This method uses the `is_valid_key!` macro to check the validity of both the `xip_key`
+    /// This method uses the `is_valid_data!` macro to check the validity of both the `xip_key`
     /// and `xip_iv` fields. It returns `true` if both fields are valid (i.e., they do not consist
     /// entirely of `0xFF` bytes). If either field is invalid, it returns `false`.
     ///
@@ -614,19 +612,19 @@ impl SectionHeader {
     pub fn xip_key_iv_valid(&self) -> bool {
         match (&self.xip_key, &self.xip_iv) {
             (Some(xip_key), Some(xip_iv)) => {
-                return is_valid_key!(xip_key) && is_valid_key!(xip_iv);
+                return is_valid_data!(xip_key) && is_valid_data!(xip_iv);
             }
             _ => return false,
         }
     }
 
     /// Retrieves the XIP key.
-    pub fn get_xip_key(&self) -> KeyRefType<16> {
+    pub fn get_xip_key(&self) -> DataRefType<16> {
         self.xip_key.as_ref()
     }
 
     /// Retrieves the XIP IV.
-    pub fn get_xip_iv(&self) -> KeyRefType<16> {
+    pub fn get_xip_iv(&self) -> DataRefType<16> {
         self.xip_iv.as_ref()
     }
 

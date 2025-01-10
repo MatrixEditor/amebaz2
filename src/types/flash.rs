@@ -34,15 +34,12 @@ use std::{collections::HashMap, io};
 use crate::{error::Error, read_padding, types::image::EncryptedOr};
 
 use super::{
-    enums::PartitionType,
-    from_stream,
-    image::{
+    enums::PartitionType, from_stream, image::{
         boot,
         ota::{self},
         pt::{self, Record},
         RawImage,
-    },
-    FromStream,
+    }, sysctrl::SystemData, FromStream
 };
 
 /// Represents different types of partitions in a flash image.
@@ -55,7 +52,7 @@ pub enum Partition {
     Fw2(ota::OTAImage),
     Reserved,
     Var(RawImage),
-    System(RawImage),
+    System(SystemData),
     User(RawImage),
     Mp(RawImage),
 }
@@ -100,10 +97,7 @@ impl Partition {
             PartitionType::Fw1 => Ok(Partition::Fw1(from_stream(reader)?)),
             PartitionType::Fw2 => Ok(Partition::Fw2(from_stream(reader)?)),
             PartitionType::Cal => Ok(Partition::Calibration),
-            PartitionType::Sys => Ok(Partition::System(Self::read_raw_image(
-                reader,
-                record.length,
-            )?)),
+            PartitionType::Sys => Ok(Partition::System(from_stream(reader)?)),
             PartitionType::User => Ok(Partition::User(Self::read_raw_image(
                 reader,
                 record.length,

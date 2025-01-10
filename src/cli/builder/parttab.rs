@@ -4,7 +4,7 @@ use colored::{Color, Colorize};
 
 use crate::{
     cli::{debug, error, util, BuildPartitionTableOptions, Cli},
-    conf::pt::{PartitionItemCfg, PartitionTableCfg},
+    conf::{DataArray, PartitionItemCfg, PartitionTableCfg},
     keys::{FLASH_PATTERN, HASH_KEY, KEY_PAIR_003},
     types::{
         enums::PartitionType,
@@ -84,10 +84,10 @@ pub fn build_parttab(
     }
 
     if let Some(user_ext) = &options.user_ext {
-        config.user_ext = Some(user_ext.clone());
+        config.user_ext = Some(DataArray::new(user_ext.clone())?);
     }
     if let Some(user_bin) = &options.user_bin {
-        config.user_bin = Some(user_bin.clone());
+        config.user_bin = Some(DataArray::new(user_bin.clone())?);
     }
 
     let mut image = PartitionTableImage::default();
