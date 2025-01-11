@@ -3,12 +3,25 @@ use std::io;
 use crate::error::Error;
 
 pub mod enums;
+pub use enums::*; // revisit
+
 pub mod flash;
+pub use flash::{Flash, Partition};
+
 pub mod fst;
+pub use fst::FST;
+
 pub mod header;
+pub use header::{EntryHeader, ImageHeader, KeyBlock, SectionHeader};
+
 pub mod image;
+pub use image::*; // revisit
+
 pub mod section;
+pub use section::Section;
+
 pub mod sysctrl;
+pub use sysctrl::{FlashInfo, ForceOldImage, SpiConfig, SystemData};
 
 /// `DataType` is a type alias for an optional fixed-size array of `u8` bytes.
 ///
@@ -186,7 +199,6 @@ macro_rules! read_valid_data {
         }
     };
 }
-
 
 /// `write_padding!` - A macro to write padding bytes to a writer.
 ///

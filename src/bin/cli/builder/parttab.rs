@@ -1,18 +1,14 @@
-use std::io::{Cursor, Seek, Write};
+use std::io::{Cursor, Write, Seek};
 
 use colored::{Color, Colorize};
 
-use crate::{
-    cli::{debug, error, util, BuildPartitionTableOptions, Cli},
+use crate::cli::{debug, error, util, BuildPartitionTableOptions, Cli};
+use amebazii::{
     conf::{DataArray, PartitionItemCfg, PartitionTableCfg},
     keys::{FLASH_PATTERN, HASH_KEY, KEY_PAIR_003},
     types::{
-        enums::PartitionType,
-        image::{
-            pt::PartitionTableImage, set_default_segment_size, set_default_signature, AsImage,
-            EncryptedOr,
-        },
-        key_to_hex, ToStream,
+        key_to_hex, set_default_segment_size, set_default_signature, AsImage, EncryptedOr,
+        PartitionTableImage, PartitionType, ToStream,
     },
     util::write_fill,
     write_aligned,
@@ -21,7 +17,7 @@ use crate::{
 pub fn build_parttab(
     cli: &Cli,
     options: &BuildPartitionTableOptions,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     if let Some(default_config_file) = &options.generate_config {
         debug!(
             cli,

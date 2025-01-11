@@ -3,7 +3,7 @@ use super::{BuildSubCommand, Cli};
 mod parttab;
 mod sysdata;
 
-pub fn main(cli: &Cli, subcommand: Option<&BuildSubCommand>) -> Result<(), crate::error::Error> {
+pub fn main(cli: &Cli, subcommand: Option<&BuildSubCommand>) -> Result<(), amebazii::error::Error> {
 
     match subcommand {
         Some(BuildSubCommand::Parttab{options}) => {

@@ -1,10 +1,8 @@
 use colored::{Color, Colorize};
 use std::{io::Write, path::PathBuf};
 
-use crate::{
-    cli::{debug, error, util, Cli},
-    types::{from_stream, image::ota::OTAImage, section},
-};
+use crate::cli::{debug, error, util, Cli};
+use amebazii::types::{from_stream, image::ota::OTAImage, section};
 
 pub fn dump_sections(
     cli: &Cli,
@@ -12,7 +10,7 @@ pub fn dump_sections(
     img_idx: u32,
     outfile: PathBuf,
     section: Option<u32>,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     let fp = util::open_file(cli, file.clone(), None);
     if fp.is_err() {
         return Ok(());
@@ -98,7 +96,7 @@ fn dump_section(
     cli: &Cli,
     section: &section::Section,
     outfile: &PathBuf,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     println!(
         "{}: {:?} (Length: 0x{:08x}, LoadAddress: 0x{:08x}, EntryAddress: 0x{:08x})",
         "Section".bold(),

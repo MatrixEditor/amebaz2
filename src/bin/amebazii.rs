@@ -1,6 +1,9 @@
 use clap::Parser;
 
-use amebazii::cli::{self, Cli, Commands};
+mod cli;
+
+use cli::{Commands, Cli};
+
 use amebazii::error::Error;
 
 fn main() -> Result<(), Error> {

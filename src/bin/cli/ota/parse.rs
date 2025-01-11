@@ -3,16 +3,14 @@ use openssl::memcmp::eq;
 use std::io::{Read, Seek};
 use std::path::PathBuf;
 
-use crate::cli::debug;
-use crate::cli::{util, Cli};
-use crate::keys::KEY_PAIR_003;
-use crate::types::header::ImageHeader;
-use crate::types::image::ota::{OTAImage, SubImage};
-use crate::types::image::EncryptedOr;
-use crate::types::{from_stream, BinarySize};
+use crate::cli::{debug, util, Cli};
+use amebazii::{
+    keys::KEY_PAIR_003,
+    types::{from_stream, BinarySize, EncryptedOr, ImageHeader, OTAImage, SubImage},
+};
 
 #[allow(unused_variables)]
-pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), crate::error::Error> {
+pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), amebazii::error::Error> {
     let file_reader = util::open_file(cli, file.clone(), None);
     if file_reader.is_err() {
         return Ok(());
@@ -29,7 +27,10 @@ pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), crate::error::Error> {
     Ok(())
 }
 
-fn dump_ota_image(ota_image: &OTAImage, fp: &mut std::fs::File) -> Result<(), crate::error::Error> {
+fn dump_ota_image(
+    ota_image: &OTAImage,
+    fp: &mut std::fs::File,
+) -> Result<(), amebazii::error::Error> {
     println!(
         "{} {} {}",
         "=".repeat(44),
@@ -117,7 +118,7 @@ fn dump_subimage(
     subimage: &SubImage,
     fp: &mut std::fs::File,
     offset: u64,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     print!("{}: ", "Header".bold());
     if subimage.header.is_encrypt {
         println!("{}", "encrypted".color(Color::Red).italic());

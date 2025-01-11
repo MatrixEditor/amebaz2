@@ -5,19 +5,15 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{
-    cli::{debug, error, util, Cli},
-    types::{
-        enums::PartitionType,
-        from_stream,
-        image::{
-            pt::{PartitionTableImage, Record},
-            EncryptedOr,
-        },
-    },
-};
+use crate::cli::{debug, error, util, Cli};
 
-pub fn split_flash(cli: &Cli, file: PathBuf, outdir: PathBuf) -> Result<(), crate::error::Error> {
+use amebazii::types::{from_stream, EncryptedOr, PartitionTableImage, PartitionType, Record};
+
+pub fn split_flash(
+    cli: &Cli,
+    file: PathBuf,
+    outdir: PathBuf,
+) -> Result<(), amebazii::error::Error> {
     let fp = util::open_file(cli, file, None);
     if fp.is_err() {
         return Ok(());
@@ -70,7 +66,7 @@ fn write_pt(
     cli: &Cli,
     fp: &mut std::fs::File,
     outdir: &PathBuf,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     let pt_file_path = outdir.join("partition.bin");
     debug!(
         cli,
@@ -94,7 +90,7 @@ fn write_record(
     index: &usize,
     fp: &mut std::fs::File,
     outdir: &PathBuf,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     fp.seek(io::SeekFrom::Start(record.start_addr as u64))?;
     let mut reader = fp.take(record.length as u64);
 

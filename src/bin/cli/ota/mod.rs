@@ -1,6 +1,6 @@
 use super::{Cli, OtaSubCommand};
-use crate::error::Error;
-use crate::map::{
+use amebazii::error::Error;
+use amebazii::map::{
     AddressRange, DTCM_RAM, PSRAM, RAM_FUN_TABLE, RAM_IMG_SIGN, VECTORS_RAM, XIP_FLASH_C,
     XIP_FLASH_P,
 };

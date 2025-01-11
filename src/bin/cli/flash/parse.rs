@@ -2,18 +2,13 @@ use colored::{Color, Colorize};
 use openssl::memcmp::eq;
 use std::{io::Seek, path::PathBuf};
 
-use crate::{
-    cli::{debug, util, Cli},
+use crate::cli::{debug, util, Cli};
+use amebazii::{
     keys::{HASH_KEY, KEY_PAIR_000, KEY_PAIR_001, KEY_PAIR_003},
-    types::{
-        enums::PartitionType,
-        flash::{Flash, Partition},
-        from_stream,
-        image::{pt::PartitionTableImage, EncryptedOr},
-    },
+    types::{from_stream, EncryptedOr, Flash, Partition, PartitionTableImage, PartitionType},
 };
 
-pub fn parse(cli: &Cli, file: PathBuf, pt_only: bool) -> Result<(), crate::error::Error> {
+pub fn parse(cli: &Cli, file: PathBuf, pt_only: bool) -> Result<(), amebazii::error::Error> {
     if let Ok(mut fp) = util::open_file(cli, file.clone(), None) {
         if pt_only {
             fp.seek(std::io::SeekFrom::Start(32))?;
@@ -45,7 +40,7 @@ pub fn parse(cli: &Cli, file: PathBuf, pt_only: bool) -> Result<(), crate::error
 fn dump_partition_table(
     pt_image: &PartitionTableImage,
     fp: &mut std::fs::File,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     println!(
         "{} {} {}",
         "=".repeat(37),

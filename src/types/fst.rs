@@ -1,7 +1,8 @@
-use super::{enums::*, BinarySize, FromStream, DataRefType, DataType, ToStream};
-use crate::{error::Error, is_valid_data, read_padding, util::write_fill, write_padding};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
+
+use super::{enums::*, BinarySize, DataRefType, DataType, FromStream, ToStream};
+use crate::{error::Error, is_valid_data, read_padding, util::write_fill, write_padding};
 
 // Layout
 //

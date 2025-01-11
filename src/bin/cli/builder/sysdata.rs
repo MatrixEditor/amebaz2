@@ -1,6 +1,7 @@
-use crate::{
-    cli::{debug, BuildSystemDataOptions, Cli},
-    conf::{DataArray, SystemDataCfg}, types::{sysctrl::SystemData, transfer_to},
+use crate::cli::{debug, BuildSystemDataOptions, Cli};
+use amebazii::{
+    conf::{DataArray, SystemDataCfg},
+    types::{sysctrl::SystemData, transfer_to},
 };
 
 use colored::{Color, Colorize};
@@ -8,7 +9,7 @@ use colored::{Color, Colorize};
 pub fn build_sysdata(
     cli: &Cli,
     options: &BuildSystemDataOptions,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     if let Some(default_config_file) = &options.generate_config {
         debug!(
             cli,
@@ -49,6 +50,10 @@ pub fn build_sysdata(
     let mut outfp = std::fs::File::create(options.file.clone().unwrap())?;
     let sysdata: SystemData = config.try_into()?;
     transfer_to(&sysdata, &mut outfp)?;
-    debug!(cli, "System data written to: {:#?}", options.file.clone().unwrap());
+    debug!(
+        cli,
+        "System data written to: {:#?}",
+        options.file.clone().unwrap()
+    );
     Ok(())
 }

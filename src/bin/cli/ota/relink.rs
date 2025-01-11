@@ -3,11 +3,12 @@ use object::build::elf::{Builder, SectionData, SectionId, Segment};
 use std::fs;
 use std::path::PathBuf;
 
-use crate::map::AddressRange;
 use crate::cli::{debug, error, util, Cli};
-use crate::types::enums::{ImageType, SectionType};
-use crate::types::image::ota::{OTAImage, SubImage};
-use crate::types::{from_stream, section};
+
+use amebazii::{
+    map::AddressRange,
+    types::{from_stream, section, ImageType, OTAImage, SectionType, SubImage},
+};
 
 pub(super) struct Options {
     pub infile: PathBuf,
@@ -37,7 +38,7 @@ struct ElfData<'d> {
     pub xip_p_text: Option<SectionId>,
 }
 
-pub fn relink(cli: &Cli, options: &Options) -> Result<(), crate::error::Error> {
+pub fn relink(cli: &Cli, options: &Options) -> Result<(), amebazii::error::Error> {
     let fp = util::open_file(cli, options.infile.clone(), None);
     if fp.is_err() {
         return Ok(());
@@ -145,7 +146,7 @@ fn extract_ram_from_fhwss(
     options: &Options,
     data: &mut ElfData<'_>,
     ram_subimage: &SubImage,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     // sections should at least contain SRAM
     let ram_sections = ram_subimage.get_sections();
     if ram_sections.len() == 0 {
@@ -183,7 +184,7 @@ fn extract_ram_from_fhwss(
                     "PSRAM code text",
                     section.entry_header.load_address as u64,
                     (object::elf::SHF_WRITE | object::elf::SHF_EXECINSTR) as u64,
-                    "__psram_code_text_start__"
+                    "__psram_code_text_start__",
                 )?);
             }
             _ => {
@@ -203,7 +204,7 @@ fn add_sram_section(
     options: &Options,
     data: &mut ElfData<'_>,
     ram_section: &section::Section,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     // SRAM defines the following section in our target ELF file:
     // .ram.img.signature -> __ram_img_signature__
     // .ram.func.table -> __ram_start_table_start__
@@ -242,7 +243,7 @@ fn add_sram_section(
         "RAM function table",
         base_address,
         (object::elf::SHF_WRITE | object::elf::SHF_ALLOC) as u64,
-        "__ram_start_table_start__"
+        "__ram_start_table_start__",
     )?);
     offset += &options.ram_func_table.len();
 
@@ -258,7 +259,7 @@ fn add_sram_section(
         "RAM image signature",
         base_address,
         object::elf::SHF_ALLOC as u64,
-        "__ram_img_signature__"
+        "__ram_img_signature__",
     )?);
     offset += &options.ram_img_signature.len();
 
@@ -274,7 +275,7 @@ fn add_sram_section(
         "DTCM RAM",
         base_address,
         (object::elf::SHF_ALLOC | object::elf::SHF_EXECINSTR) as u64,
-        "__ram_code_text_start__"
+        "__ram_code_text_start__",
     )?);
     Ok(())
 }
@@ -291,7 +292,7 @@ fn build_ram_section(
     base_address: u64,
     flags: u64,
     label: &'static str,
-) -> Result<SectionId, crate::error::Error> {
+) -> Result<SectionId, amebazii::error::Error> {
     let mut length = target_range.len();
     if offset as usize + length as usize > ram.len() {
         if !options.cap_length {
@@ -301,7 +302,7 @@ fn build_ram_section(
                 "- Requested {} length: {} from offset {}",
                 display_name, length, offset
             );
-            return Err(crate::error::Error::InvalidState(format!(
+            return Err(amebazii::error::Error::InvalidState(format!(
                 "{} too big!",
                 display_name
             )));
@@ -337,7 +338,7 @@ fn write_section(
     name: &str,
     data: &[u8],
     display_name: &str,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     print!("{}- {}... ", " ".repeat(6), display_name.italic());
     if let Some(outdir) = &options.save_intermediate {
         let section_file = outdir.join(name);
@@ -376,7 +377,7 @@ fn create_obj(
     cli: &Cli,
     options: &Options,
     mut data: ElfData<'_>,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), amebazii::error::Error> {
     debug!(cli, "Creating ELF file");
 
     let ram_vector_table = build_ram_section(
@@ -390,7 +391,7 @@ fn create_obj(
         "RAM vector table",
         options.ram_vector.start(),
         0,
-        "__ram_vector_table_start__"
+        "__ram_vector_table_start__",
     )?;
 
     data.builder.set_section_sizes();

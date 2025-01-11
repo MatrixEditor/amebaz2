@@ -17,6 +17,7 @@ mod headings {
 /// AmebaZ2 Tools to work with OTA and flash images
 #[derive(Parser)]
 #[command(version = "0.1.0")]
+#[command(name = "amebazii")]
 #[command(about, long_about)]
 #[command(arg_required_else_help = true)]
 pub struct Cli {
@@ -76,6 +77,12 @@ pub enum FlashSubCommand {
         #[arg(value_name = "DIR")]
         outdir: Option<PathBuf>,
     },
+
+    #[command(arg_required_else_help = true)]
+    Combine {
+        #[command(flatten)]
+        options: Option<flash::CombineOptions>,
+    }
 }
 
 /// OTA-related operations

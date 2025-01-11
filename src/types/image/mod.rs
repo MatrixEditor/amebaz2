@@ -1,12 +1,15 @@
+use super::{FromStream, ToStream};
+use crate::error::Error;
 use std::io;
 
-use crate::error::Error;
-
-use super::{FromStream, ToStream};
-
 pub mod boot;
+pub use boot::BootImage;
+
 pub mod ota;
+pub use ota::{OTAImage, SubImage};
+
 pub mod pt;
+pub use pt::{PartTab, PartitionTableImage, Record, TrapConfig};
 
 pub type RawImage = Vec<u8>;
 
