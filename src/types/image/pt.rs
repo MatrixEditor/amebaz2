@@ -4,9 +4,16 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::Error, is_valid_data, read_padding, read_valid_data, types::{
-        enums::{KeyExportOp, PartitionType}, from_stream, header::{ImageHeader, KeyBlock}, BinarySize, DataRefType, DataType, FromStream, ToStream
-    }, util::{hmac_sha256, write_fill}, write_data, write_padding
+    error::Error,
+    is_valid_data, read_padding, read_valid_data,
+    types::{
+        enums::{KeyExportOp, PartitionType},
+        from_stream,
+        header::{ImageHeader, KeyBlock},
+        BinarySize, DataRefType, DataType, FromStream, ToStream,
+    },
+    util::{hmac_sha256, write_fill},
+    write_data, write_padding,
 };
 
 use super::{AsImage, EncryptedOr};
@@ -372,6 +379,18 @@ impl PartTab {
     /// - `record`: The `Record` struct that defines the new partition entry to add.
     pub fn add_record(&mut self, record: Record) {
         self.records.push(record);
+    }
+
+    /// Returns the record for a specific partition type.
+    ///
+    /// # Arguments:
+    /// - `part_type`: The `PartitionType` enum value representing the partition type.
+    ///
+    /// # Returns:
+    /// - `Some(&Record)` if the record for the given partition type is found.
+    /// - `None` if the record for the given partition type is not found.
+    pub fn get_record(&self, part_type: PartitionType) -> Option<&Record> {
+        return self.records.iter().find(|r| r.part_type == part_type);
     }
 }
 

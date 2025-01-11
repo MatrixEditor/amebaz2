@@ -233,7 +233,7 @@ macro_rules! read_valid_data {
 #[macro_export]
 macro_rules! write_padding {
     // Variant 1: Default padding (filled with `0xFF`)
-    ($writer:expr, $size:literal) => {
+    ($writer:expr, $size:expr) => {
         if $size > 4096 {
             write_fill($writer, 0xFF, $size as u64)?;
         } else {

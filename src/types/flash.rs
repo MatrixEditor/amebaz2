@@ -31,15 +31,25 @@
 
 use std::{collections::HashMap, io};
 
-use crate::{error::Error, read_padding, types::image::EncryptedOr};
+use crate::{
+    error::Error,
+    read_padding,
+    types::{image::EncryptedOr, PartTab},
+    util::write_fill,
+    write_aligned, write_padding,
+};
 
 use super::{
-    enums::PartitionType, from_stream, image::{
+    enums::PartitionType,
+    from_stream,
+    image::{
         boot,
         ota::{self},
         pt::{self, Record},
         RawImage,
-    }, sysctrl::SystemData, FromStream
+    },
+    sysctrl::SystemData,
+    FromStream, ToStream,
 };
 
 /// Represents different types of partitions in a flash image.
@@ -113,6 +123,28 @@ impl Partition {
     }
 }
 
+impl ToStream for Partition {
+    fn write_to<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: io::Write + io::Seek,
+    {
+        match self {
+            Partition::PartitionTable(pt) => pt.write_to(writer)?,
+            Partition::Bootloader(bt) => bt.write_to(writer)?,
+            Partition::Calibration => (),
+            Partition::Fw1(fw1) => fw1.write_to(writer)?,
+            Partition::Fw2(fw2) => fw2.write_to(writer)?,
+            Partition::Reserved => (),
+            Partition::Var(var) => writer.write_all(var)?,
+            Partition::System(sys) => sys.write_to(writer)?,
+            Partition::User(user) => writer.write_all(user)?,
+            Partition::Mp(mp) => writer.write_all(mp)?,
+        }
+
+        Ok(())
+    }
+}
+
 /// Represents a flash image, including calibration data and partitions.
 pub struct Flash {
     /// A 16-byte calibration pattern used for calibration data.
@@ -182,6 +214,22 @@ impl Flash {
     pub fn set_partition(&mut self, part_type: PartitionType, partition: Partition) {
         self.partitions.insert(part_type, partition);
     }
+
+    pub fn set_system_partition(&mut self, system_data: SystemData) {
+        self.set_partition(PartitionType::Sys, Partition::System(system_data));
+    }
+
+    pub fn set_boot_partition(&mut self, boot_image: boot::BootImage) {
+        self.set_partition(PartitionType::Boot, Partition::Bootloader(boot_image));
+    }
+
+    pub fn set_fw1(&mut self, fw1_image: ota::OTAImage) {
+        self.set_partition(PartitionType::Fw1, Partition::Fw1(fw1_image));
+    }
+
+    pub fn set_fw2(&mut self, fw2_image: ota::OTAImage) {
+        self.set_partition(PartitionType::Fw2, Partition::Fw2(fw2_image));
+    }
 }
 
 impl FromStream for Flash {
@@ -211,6 +259,132 @@ impl FromStream for Flash {
             }
         }
         self.set_partition(PartitionType::PartTab, Partition::PartitionTable(pt_image));
+        Ok(())
+    }
+}
+
+impl ToStream for Flash {
+    /// Writes the flash image to the provided writer.
+    ///
+    /// This function writes the entire flash image, including the calibration pattern, partitions,
+    /// and partition records. It populates the `Flash` struct with the data read from the stream.
+    ///
+    /// # Parameters:
+    /// - `writer`: The output stream to which the flash image is written.
+    ///
+    /// # Returns:
+    /// - `Ok(())` if the flash image was successfully written.
+    /// - `Err(Error)` if there was an issue writing the flash image.
+    fn write_to<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: io::Write + io::Seek,
+    {
+        writer.write_all(&self.calibration_pattern)?;
+        write_padding!(writer, 16);
+
+        let pt_image = self.partitions.get(&PartitionType::PartTab);
+        if pt_image.is_none() {
+            return Err(Error::InvalidState("Partition table not found".to_string()));
+        }
+
+        let pt_image = pt_image.unwrap();
+        pt_image.write_to(writer)?;
+        write_aligned!(writer, 0x1000);
+
+        // system partition is mandatory
+        let system = self.partitions.get(&PartitionType::Sys);
+        if system.is_none() {
+            return Err(Error::InvalidState(
+                "System partition not found".to_string(),
+            ));
+        }
+        system.unwrap().write_to(writer)?;
+        // we don't have to align here, because the system partition already fills up
+        // the space
+
+        // calibration data: reserved
+        // reserved (backup sector for write operations)
+        write_padding!(writer, 0x2000);
+
+        // even though the next sections are mandatory, we use the records within the
+        // partition table to populate the flash image
+        if let Partition::PartitionTable(pt_image) = pt_image {
+            let pt = &pt_image.pt;
+            if pt.is_encrypted() {
+                return Err(Error::NotImplemented(
+                    "Encrypted partition table is not supported".to_string(),
+                ));
+            }
+
+            // the order must be preserved (BUT it is not checked here)
+            let pt: &PartTab = pt.as_ref();
+            self.write_partition(writer, pt, PartitionType::Boot)?;
+            self.write_partition(writer, pt, PartitionType::Fw1)?;
+            self.write_partition(writer, pt, PartitionType::Fw2)?;
+            self.write_partition(writer, pt, PartitionType::User)?;
+        }
+        Ok(())
+    }
+}
+
+impl Flash {
+    /// Fills the stream with padding up to the specified offset.
+    ///
+    /// # Arguments:
+    /// - `writer`: A mutable reference to a writer that implements the `std::io::Write` and
+    ///   `std::io::Seek` traits.
+    /// - `offset`: The offset to fill up to.
+    ///
+    /// # Returns:
+    /// - `Ok(())` if the write operation is successful.
+    /// - `Err(Error)` if there is an error during the write operation.
+    fn fill_to_offset<W>(&self, writer: &mut W, offset: u64) -> Result<(), Error>
+    where
+        W: io::Write + io::Seek,
+    {
+        let pos = writer.stream_position()?;
+        if pos > offset {
+            return Err(Error::InvalidState(format!(
+                "Cannot fill to offset {}, current position is {}",
+                offset, pos
+            )));
+        }
+
+        write_padding!(writer, offset - pos);
+        Ok(())
+    }
+
+    /// Writes a partition to the stream (if present).
+    ///
+    /// # Arguments:
+    /// - `writer`: A mutable reference to a writer that implements the `std::io::Write` and
+    ///   `std::io::Seek` traits.
+    /// - `pt`: A reference to the partition table.
+    /// - `part_type`: The type of the partition to write.
+    ///
+    /// # Returns:
+    /// - `Ok(())` if the write operation is successful.
+    /// - `Err(Error)` if there is an error during the write operation.
+    fn write_partition<W>(
+        &self,
+        writer: &mut W,
+        pt: &PartTab,
+        part_type: PartitionType,
+    ) -> Result<(), Error>
+    where
+        W: io::Write + io::Seek,
+    {
+        if let Some(record) = pt.get_record(part_type) {
+            self.fill_to_offset(writer, record.start_addr as u64)?;
+            if let Some(partition) = self.partitions.get(&record.part_type) {
+                partition.write_to(writer)?;
+            } else {
+                return Err(Error::InvalidState(format!(
+                    "Partition with type '{:?}' not found (is mandatory)",
+                    record.part_type
+                )));
+            }
+        }
         Ok(())
     }
 }

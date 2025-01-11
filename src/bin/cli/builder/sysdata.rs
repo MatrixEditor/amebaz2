@@ -1,10 +1,12 @@
-use crate::cli::{debug, BuildSystemDataOptions, Cli};
+use crate::cli::{debug, Cli};
 use amebazii::{
     conf::{DataArray, SystemDataCfg},
     types::{sysctrl::SystemData, transfer_to},
 };
 
 use colored::{Color, Colorize};
+
+use super::BuildSystemDataOptions;
 
 pub fn build_sysdata(
     cli: &Cli,

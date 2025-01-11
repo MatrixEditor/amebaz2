@@ -67,10 +67,7 @@ impl TryFrom<u8> for ImageType {
             10 => Ok(ImageType::Cinit),
             11 => Ok(ImageType::Cpfw),
             0x3F => Ok(ImageType::Unknown),
-            _ => Err(Error::UnknownImageType(format!(
-                "Invalid image type: {}",
-                value
-            ))),
+            _ => Err(Error::UnknownImageType(value)),
         }
     }
 }

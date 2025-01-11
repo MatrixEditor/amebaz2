@@ -2,7 +2,7 @@ use std::io::{Cursor, Write, Seek};
 
 use colored::{Color, Colorize};
 
-use crate::cli::{debug, error, util, BuildPartitionTableOptions, Cli};
+use crate::cli::{debug, error, util, Cli};
 use amebazii::{
     conf::{DataArray, PartitionItemCfg, PartitionTableCfg},
     keys::{FLASH_PATTERN, HASH_KEY, KEY_PAIR_003},
@@ -13,6 +13,8 @@ use amebazii::{
     util::write_fill,
     write_aligned,
 };
+
+use super::BuildPartitionTableOptions;
 
 pub fn build_parttab(
     cli: &Cli,

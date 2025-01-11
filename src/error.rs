@@ -4,7 +4,7 @@ use std::io;
 
 #[derive(Debug)]
 pub enum Error {
-    UnknownImageType(String),
+    UnknownImageType(u8),
     UnknownSectionType(String),
     InvalidEnumValue(String),
     IOError(io::Error),
