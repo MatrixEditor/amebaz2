@@ -11,7 +11,7 @@ Features:
 
 * Parse OTA and Flash images (w/ extraction support)
 * [_**Relink**_](#relinking) existing OTA images back to their compiled application binary (ELF) 🎊
-
+* Build a partition table and system data partition
 
 ## Usage
 
@@ -67,6 +67,9 @@ Sections:
 [...]
 ```
 
+> [!NOTE]
+> Use `--boot` to parse a boot image extracted from a flash image.
+
 #### Relinking
 
 *Currently searching for the appropriate wording, but relinking seems to describe the process very well.*
@@ -105,9 +108,9 @@ Program Headers:
 
 > [!NOTE]
 > Even though, one could put that file into Ghidra and start inspecting the code,
-> it won't load all segments correctly --> WIP. The current workaround is to add
-> each segment manually (taken from section dumps) using File > Add To Program.
-> The virtual address is the image base address of each section in Ghidra.
+> it won't load all segments correctly --> WIP. Currently, the standard segments
+> with custom labels doesn't get imported properly. All other segments work as
+> expected.
 
 #### Extraction
 
@@ -175,6 +178,11 @@ The `flash` subcommand can parse and extract all partitions from a raw flash ima
     ```
     The target directory will store `partition.bin` for the partition table and all other
     partitions mentioned within the partition table.
+
+#### Combine Partitions
+
+*TODO*
+
 
 ## Disclaimer
 
