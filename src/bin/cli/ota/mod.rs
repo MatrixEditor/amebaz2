@@ -87,6 +87,17 @@ pub struct RelinkOptions {
     xip_p_end: Option<u64>,
 }
 
+#[derive(Parser)]
+pub struct ParseOptions {
+    /// The input firmware file to be parsed.
+    #[arg(value_name = "FILE")]
+    file: Option<PathBuf>,
+
+    /// specifies whether the input file stores a bootloader image
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    boot: bool,
+}
+
 fn get_address_range(
     start: &Option<u64>,
     end: &Option<u64>,
@@ -102,7 +113,11 @@ fn get_address_range(
 
 pub fn main(cli: &Cli, command: Option<&OtaSubCommand>) -> Result<(), Error> {
     match command {
-        Some(OtaSubCommand::Parse { file }) => parse::parse(cli, file.clone().unwrap())?,
+        Some(OtaSubCommand::Parse { options }) => {
+            if let Some(options) = options {
+                parse::parse(cli, options)?;
+            }
+        },
         Some(OtaSubCommand::Dump {
             file,
             subimage,

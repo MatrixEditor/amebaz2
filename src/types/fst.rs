@@ -2,7 +2,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 
 use super::{enums::*, BinarySize, DataRefType, DataType, FromStream, ToStream};
-use crate::{error::Error, is_valid_data, read_padding, util::write_fill, write_padding};
+use crate::{error::Error, is_valid_data, keys::DEFAULT_VALID_PATTERN, read_padding, util::write_fill, write_padding};
 
 // Layout
 //
@@ -58,7 +58,7 @@ impl Default for FST {
             enc_algo: None, // currently encryption is not supported
             hash_algo: Some(HashAlgo::Sha256),
             partition_size: 0, // default is zero
-            valid_pattern: [0, 1, 2, 3, 4, 5, 6, 7],
+            valid_pattern: DEFAULT_VALID_PATTERN.clone(),
             cipher_key: None,
             cipher_iv: None,
         };
@@ -122,6 +122,18 @@ impl FST {
     /// An `Option` containing a reference to the 16-byte cipher IV.
     pub fn get_cipher_iv(&self) -> DataRefType<16> {
         return self.cipher_iv.as_ref();
+    }
+
+    pub fn set_cipher_iv(&mut self, iv: DataType<16>) {
+        self.cipher_iv = iv;
+    }
+
+    pub fn set_cipher_key(&mut self, key: DataType<32>) {
+        self.cipher_key = key;
+    }
+
+    pub fn set_valid_pattern(&mut self, pattern: [u8; 8]) {
+        self.valid_pattern = pattern;
     }
 }
 

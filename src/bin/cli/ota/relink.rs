@@ -88,7 +88,8 @@ pub fn relink(cli: &Cli, options: &Options) -> Result<(), amebazii::error::Error
                     elf_section.sh_size = section.get_data().len() as u64;
                     elf_section.data = SectionData::Data(section.get_data().to_vec().into());
                     elf_section.sh_addr = section.entry_header.load_address as u64;
-                    data.std_sections.push(elf_section.id());
+
+                    // data.std_sections.push(elf_section.id());
 
                     if options
                         .xip_c_text
@@ -119,7 +120,8 @@ pub fn relink(cli: &Cli, options: &Options) -> Result<(), amebazii::error::Error
                             "XIP code plaintext section (rodata)",
                         )?;
 
-                        elf_section.sh_flags = (object::elf::SHF_WRITE) as u64;
+                        elf_section.sh_flags =
+                            (object::elf::SHF_WRITE | object::elf::SHF_ALLOC) as u64;
                         elf_section.name = b".xip.code_p"[..].into();
                         data.xip_p_text = Some(elf_section.id());
                     }
@@ -394,7 +396,7 @@ fn create_obj(
         "__ram_vector_table_start__",
     )?;
 
-    data.builder.set_section_sizes();
+    // data.builder.set_section_sizes();
 
     println!("\n{} ", "Program Headers:".bold().underline());
     println!(
@@ -405,8 +407,7 @@ fn create_obj(
     let std_segment = data
         .builder
         .segments
-        .add_load_segment(object::elf::PF_R, data.builder.load_align);
-    std_segment.p_align = 0x10000;
+        .add_load_segment(object::elf::PF_R, 0x10000);
     for section_id in &data.std_sections {
         std_segment.append_section(data.builder.sections.get_mut(*section_id));
     }
@@ -417,10 +418,9 @@ fn create_obj(
     let segment = data
         .builder
         .segments
-        .add_load_segment(object::elf::PF_R, data.builder.load_align);
+        .add_load_segment(object::elf::PF_R | object::elf::PF_W, 0x10000);
     segment.p_filesz = 0;
     segment.p_memsz = 0;
-    segment.p_align = 0x10000;
     segment.p_vaddr = options.ram_vector.start();
     segment.p_paddr = options.ram_vector.start();
     segment.p_offset = offset;
@@ -505,8 +505,6 @@ fn create_obj(
         segment.p_offset = offset;
         segment.append_section(data.builder.sections.get_mut(*xip_p_text));
         _print_segment_info(&segment, "RW", "XIP.P rodata, text");
-        // not necessary
-        // offset += &options.xip_p_text.len();
     }
 
     let mut buffer = Vec::new();
@@ -544,7 +542,6 @@ impl ElfData<'_> {
         section.sh_addralign = 1;
         data.std_sections.push(section.id());
 
-        data.std_sections.push(section.id());
         let section = data.builder.sections.add();
         section.name = b".symtab"[..].into();
         section.sh_type = object::elf::SHT_SYMTAB;

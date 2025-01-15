@@ -1,11 +1,12 @@
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Write, Seek};
 
 use crate::{
     types::{
         header::{EntryHeader, ImageHeader, KeyBlock},
         BinarySize, FromStream, ToStream,
     },
-    util::{hmac_sha256, skip_aligned},
+    util::{hmac_sha256, skip_aligned, write_fill},
+    write_aligned,
 };
 
 use super::AsImage;
@@ -50,6 +51,16 @@ impl Default for BootImage {
     }
 }
 
+impl BootImage {
+    pub fn get_text(&self) -> &[u8] {
+        &self.text
+    }
+
+    pub fn get_hash(&self) -> &[u8] {
+        &self.hash
+    }
+}
+
 impl FromStream for BootImage {
     /// Reads a `BootImage` from a binary stream.
     ///
@@ -64,10 +75,15 @@ impl FromStream for BootImage {
     {
         self.keyblock.read_from(reader)?;
         self.header.read_from(reader)?;
+
+        // TODO: add support for encrypted boot images
         self.entry.read_from(reader)?;
 
         // Resize the `text` field to match the segment size in the header, then read it
-        self.text.resize(self.header.segment_size as usize, 0x00);
+        self.text.resize(
+            self.header.segment_size as usize - EntryHeader::binary_size(),
+            0x00,
+        );
         reader.read_exact(&mut self.text)?;
 
         // Skip any padding (aligned to 0x20 bytes)
@@ -89,7 +105,7 @@ impl AsImage for BootImage {
     fn build_segment_size(&self) -> u32 {
         // Segment size is the sum of the header size, entry size, text size, and hash size.
         // You can adjust this formula if your BootImage structure needs additional fields.
-        let new_size = self.text.len() as u32;
+        let new_size = self.text.len() as u32 + EntryHeader::binary_size() as u32;
         new_size + (0x20 - (new_size % 0x20))
     }
 
@@ -126,6 +142,7 @@ impl AsImage for BootImage {
         self.header.write_to(&mut writer)?;
         self.entry.write_to(&mut writer)?;
         writer.write_all(&self.text)?;
+        write_aligned!(&mut writer, 0x20, 0x00, optional);
 
         // The signature is generated using HMAC or any other algorithm.
         Ok(hmac_sha256(key.unwrap(), &buffer)?.to_vec())

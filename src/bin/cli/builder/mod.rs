@@ -6,15 +6,48 @@ mod parttab;
 mod sysdata;
 
 #[derive(Parser)]
-#[clap(verbatim_doc_comment)]
-pub struct BuildPartitionTableOptions {
-    /// Output file path where the partition table will be saved.
+pub struct GenerateConfigOptions {
+    /// Path to a configuration file to generate default options to.
     ///
-    /// This argument specifies the path to the file where the generated partition table
+    /// This option is used to generate a configuration file for default settings
+    /// rather than directly building the binary file. The generated file can be
+    /// used later to configure the build process.
+    #[clap(verbatim_doc_comment)]
+    #[arg(short = 'G', long, value_name = "CFG", help_heading = headings::CONFIG_GEN_OPTIONS)]
+    pub generate_config: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct ConfigOptions {
+    /// Configuration file to use when building.
+    ///
+    /// This option allows you to specify a configuration file that contains predefined
+    /// settings or parameters for the build process. The configuration file is expected
+    /// to be in a format understood by the tool (JSON).
+    #[clap(verbatim_doc_comment)]
+    #[arg(short = 'c', long = "config", value_name = "CFG", name = "config_file")]
+    pub file: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct OutputOptions {
+    /// Output file path where the binary data will be saved.
+    ///
+    /// This argument specifies the path to the file where the generated data
     /// will be written.
     #[clap(verbatim_doc_comment)]
-    #[arg(value_name = "FILE")]
+    #[arg(value_name = "FILE", name = "output_file")]
     pub file: Option<PathBuf>,
+
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    pub force: bool,
+}
+
+#[derive(Parser)]
+#[clap(verbatim_doc_comment)]
+pub struct BuildPartitionTableOptions {
+    #[command(flatten)]
+    pub output: OutputOptions,
 
     /// Whether to fill the entire sector with data (default: false).
     ///
@@ -25,23 +58,8 @@ pub struct BuildPartitionTableOptions {
     #[arg(short, long, action = clap::ArgAction::SetTrue, help_heading = headings::BUILD_OPTIONS)]
     pub fill_sector: bool,
 
-    /// Configuration file to use when building the partition table.
-    ///
-    /// This option allows you to specify a configuration file that contains predefined
-    /// settings or parameters for the partition table. The configuration file is expected
-    /// to be in a format understood by the tool (JSON).
-    #[clap(verbatim_doc_comment)]
-    #[arg(short, long, value_name = "CFG")]
-    pub config: Option<PathBuf>,
-
-    /// Path to a configuration file to generate partition table options to.
-    ///
-    /// This option is used to generate a configuration file for partition table settings
-    /// rather than directly building the partition table. The generated file can be used
-    /// later to configure the partition table build process.
-    #[clap(verbatim_doc_comment)]
-    #[arg(short = 'G', long, value_name = "CFG", help_heading = headings::CONFIG_GEN_OPTIONS)]
-    pub generate_config: Option<PathBuf>,
+    #[command(flatten)]
+    pub config: ConfigOptions,
 
     /// Flag to generate default entries for the partition table (default: false).
     ///
@@ -51,6 +69,9 @@ pub struct BuildPartitionTableOptions {
     #[clap(verbatim_doc_comment)]
     #[arg(long = "default-entries", action = clap::ArgAction::SetTrue, help_heading = headings::CONFIG_GEN_OPTIONS)]
     pub generate_default_entries: bool,
+
+    #[command(flatten)]
+    pub gen_defaults: GenerateConfigOptions,
 
     /// Skip calibration pattern generation during partition table build.
     ///
@@ -121,21 +142,11 @@ pub struct BuildPartitionTableOptions {
 #[derive(Parser)]
 #[clap(verbatim_doc_comment)]
 pub struct BuildSystemDataOptions {
-    /// Output file path where the system data will be saved.
-    ///
-    /// Specifies the path to the file where the generated system data
-    /// will be written.
-    #[clap(verbatim_doc_comment)]
-    #[arg(value_name = "FILE")]
-    pub file: Option<PathBuf>,
+    #[command(flatten)]
+    pub output: OutputOptions,
 
-    /// Path to a configuration file.
-    ///
-    /// Specifies the path to a configuration file that will
-    /// be used when building the system data.
-    #[clap(verbatim_doc_comment)]
-    #[arg(short, long, value_name = "CFG", value_hint = clap::ValueHint::FilePath)]
-    pub config: Option<PathBuf>,
+    #[command(flatten)]
+    pub config: ConfigOptions,
 
     /// Address for OTA2 (Over-the-Air update) system.
     ///
@@ -173,20 +184,15 @@ pub struct BuildSystemDataOptions {
     #[arg(long, help_heading = headings::SYSDATA_OPTIONS, value_name = "FILE/DATA")]
     pub bt_parameter_data: Option<String>,
 
-    /// Flag to generate a configuration file.
-    #[clap(verbatim_doc_comment)]
-    #[arg(short = 'G', long, value_name = "CFG", help_heading = headings::CONFIG_GEN_OPTIONS)]
-    pub generate_config: Option<PathBuf>,
+    #[command(flatten)]
+    pub gen_defaults: GenerateConfigOptions,
 }
+
 
 pub fn main(cli: &Cli, subcommand: Option<&BuildSubCommand>) -> Result<(), amebazii::error::Error> {
     match subcommand {
-        Some(BuildSubCommand::Parttab { options }) => {
-            parttab::build_parttab(cli, options.as_ref().unwrap())?
-        }
-        Some(BuildSubCommand::Sysdata { options }) => {
-            sysdata::build_sysdata(cli, options.as_ref().unwrap())?
-        }
+        Some(BuildSubCommand::Parttab { options }) => parttab::build_parttab(cli, options)?,
+        Some(BuildSubCommand::Sysdata { options }) => sysdata::build_sysdata(cli, options)?,
         _ => {}
     }
 

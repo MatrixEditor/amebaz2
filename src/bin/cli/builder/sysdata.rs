@@ -1,4 +1,4 @@
-use crate::cli::{debug, Cli};
+use crate::cli::{debug, error, Cli};
 use amebazii::{
     conf::{DataArray, SystemDataCfg},
     types::{sysctrl::SystemData, transfer_to},
@@ -12,7 +12,7 @@ pub fn build_sysdata(
     cli: &Cli,
     options: &BuildSystemDataOptions,
 ) -> Result<(), amebazii::error::Error> {
-    if let Some(default_config_file) = &options.generate_config {
+    if let Some(default_config_file) = &options.gen_defaults.generate_config {
         debug!(
             cli,
             "Generating default config file: {:#?}", default_config_file
@@ -24,7 +24,7 @@ pub fn build_sysdata(
     }
 
     let mut config: SystemDataCfg;
-    if let Some(config_file) = &options.config {
+    if let Some(config_file) = &options.config.file {
         let mut cfgin = std::fs::File::open(config_file.clone())?;
         config = serde_json::from_reader(&mut cfgin).unwrap();
     } else {
@@ -49,13 +49,13 @@ pub fn build_sysdata(
         config.bt_parameter_data = Some(DataArray::new(bt_parameter_data.clone())?);
     }
 
-    let mut outfp = std::fs::File::create(options.file.clone().unwrap())?;
-    let sysdata: SystemData = config.try_into()?;
-    transfer_to(&sysdata, &mut outfp)?;
-    debug!(
-        cli,
-        "System data written to: {:#?}",
-        options.file.clone().unwrap()
-    );
+    if let Some(outfile_path) = &options.output.file {
+        let mut outfp = std::fs::File::create(outfile_path)?;
+        let sysdata: SystemData = config.try_into()?;
+        transfer_to(&sysdata, &mut outfp)?;
+        debug!(cli, "System data written to: {:#?}", outfile_path.display());
+    } else {
+        error!("{}", "No output file specified.");
+    }
     Ok(())
 }

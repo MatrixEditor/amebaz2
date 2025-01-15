@@ -51,7 +51,7 @@ use crate::{
         fst::FST,
         header::{ImageHeader, KeyBlock},
         section::Section,
-        BinarySize, FromStream, DataRefType, DataType, ToStream,
+        BinarySize, DataRefType, DataType, FromStream, ToStream,
     },
     util::{skip_aligned, write_fill},
     write_aligned, write_data, write_padding,
@@ -624,9 +624,10 @@ impl FromStream for OTAImage {
         }
 
         let checksum = reader.read_u32::<LittleEndian>()?;
-        if checksum != 0xFFFF_FFFF {
-            self.checksum = Some(checksum);
-        }
+        self.checksum = match checksum {
+            0xFFFF_FFFF | 0x1A1A_1A1A => None,
+            v => Some(v),
+        };
         Ok(())
     }
 }

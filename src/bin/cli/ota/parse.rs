@@ -1,7 +1,7 @@
+use amebazii::types::BootImage;
 use colored::{Color, Colorize};
 use openssl::memcmp::eq;
 use std::io::{Read, Seek};
-use std::path::PathBuf;
 
 use crate::cli::{debug, util, Cli};
 use amebazii::{
@@ -9,21 +9,27 @@ use amebazii::{
     types::{from_stream, BinarySize, EncryptedOr, ImageHeader, OTAImage, SubImage},
 };
 
+use super::ParseOptions;
+
 #[allow(unused_variables)]
-pub fn parse(cli: &Cli, file: PathBuf) -> Result<(), amebazii::error::Error> {
-    let file_reader = util::open_file(cli, file.clone(), None);
-    if file_reader.is_err() {
-        return Ok(());
+pub fn parse(cli: &Cli, options: &ParseOptions) -> Result<(), amebazii::error::Error> {
+    if let Some(input_file) = &options.file {
+        let file_reader = util::open_file(cli, input_file.clone(), None);
+        if file_reader.is_err() {
+            return Ok(());
+        }
+
+        let mut fp = file_reader.unwrap();
+        if options.boot {
+            let image: BootImage = from_stream(&mut fp)?;
+            debug!(cli, "Finished parsing file: {}", input_file.display());
+            dump_bootloader(&image)?;
+        } else {
+            let image: OTAImage = from_stream(&mut fp)?;
+            debug!(cli, "Finished parsing file: {}", input_file.display());
+            dump_ota_image(&image, &mut fp)?;
+        }
     }
-
-    let mut fp = file_reader.unwrap();
-    let image: OTAImage = from_stream(&mut fp)?;
-
-    if cli.verbose > 2 {
-        debug!(cli, "Finished parsing file: {}", file.display());
-    }
-
-    dump_ota_image(&image, &mut fp)?;
     Ok(())
 }
 
@@ -196,5 +202,41 @@ fn dump_subimage(
             section.entry_header.entry_address.unwrap_or(0xFFFF_FFFF)
         );
     }
+    Ok(())
+}
+
+fn dump_bootloader(image: &BootImage) -> Result<(), amebazii::error::Error> {
+    println!(
+        "{} {} {}",
+        "=".repeat(44),
+        "Bootloader".bold(),
+        "=".repeat(44)
+    );
+
+    println!("{}:", "Header".bold());
+    println!("  - Type: {:?}", image.header.img_type);
+    println!("  - Size: 0x{:08x}", image.header.segment_size);
+    println!("  - Serial: {}", image.header.serial);
+
+    println!("\n{}: ", "Security".bold());
+    print!("  - Encryption: ");
+    if image.header.is_encrypt {
+        println!("{}", "enabled".color(Color::Green));
+    } else {
+        println!("{}", "disabled".yellow().italic());
+    }
+    println!("  - Hash: {}", hex::encode(image.get_hash()));
+
+    if !image.header.is_encrypt {
+        println!("\n{}:", "Sections".bold());
+        println!(
+            "  [0] - {} (length: 0x{:08x}, load: 0x{:08x}, entry: 0x{:08x})",
+            "Bootloader",
+            image.entry.length,
+            image.entry.load_address,
+            image.entry.entry_address.unwrap_or(0xFFFF_FFFF)
+        );
+    }
+    println!("{}\n", "=".repeat(100));
     Ok(())
 }

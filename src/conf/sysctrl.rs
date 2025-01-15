@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_aux::prelude::deserialize_option_number_from_string;
 
 use crate::types::sysctrl::{FlashInfo, ForceOldImage, SpiConfig, SystemData};
 
@@ -8,8 +9,10 @@ use super::DataArray;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystemDataCfg {
     /// The address of the second OTA partition, if available.
+    #[serde(deserialize_with = "deserialize_option_number_from_string")]
     pub ota2_addr: Option<u32>,
     /// The size of the second OTA partition, if available.
+    #[serde(deserialize_with = "deserialize_option_number_from_string")]
     pub ota2_size: Option<u32>,
 
     ///  Configuration for the old image trap, typically used to control whether an old image is forced into memory.
@@ -25,6 +28,7 @@ pub struct SystemDataCfg {
     pub flash_info: FlashInfo,
 
     /// Baud rate for the UART logging interface.
+    #[serde(deserialize_with = "deserialize_option_number_from_string")]
     pub ulog_baud: Option<u32>,
 
     /// SPI calibration configuration, stored as raw data.

@@ -83,7 +83,7 @@ pub enum FlashSubCommand {
     Combine {
         #[command(flatten)]
         options: Option<flash::CombineOptions>,
-    }
+    },
 }
 
 /// OTA-related operations
@@ -93,8 +93,8 @@ pub enum OtaSubCommand {
     #[command(arg_required_else_help = true)]
     Parse {
         /// The OTA image file to parse
-        #[arg(value_name = "FILE")]
-        file: Option<PathBuf>,
+        #[command(flatten)]
+        options: Option<ota::ParseOptions>,
     },
 
     /// Extracts sections from subimages within an OTA image
@@ -135,28 +135,27 @@ pub enum BuildSubCommand {
     #[command(arg_required_else_help = true)]
     Parttab {
         #[command(flatten)]
-        options: Option<builder::BuildPartitionTableOptions>,
+        options: builder::BuildPartitionTableOptions,
     },
 
     /// Builds the system data partition
     #[command(arg_required_else_help = true)]
     Sysdata {
         #[command(flatten)]
-        options: Option<builder::BuildSystemDataOptions>,
-    }
+        options: builder::BuildSystemDataOptions,
+    },
 }
-
 
 /// Macro for printing debug messages with formatting.
 macro_rules! debug {
     ($cli: expr, $msg:literal) => {
         if $cli.verbose > 2 {
-            println!("{}{}", "D : ".bold().color(Color::BrightBlack), $msg.color(Color::BrightBlack));
+            println!("{}{}", "D : ".bold().bright_black(), $msg.bright_black());
         }
     };
     ($cli:expr, $argmsg:literal, $($arg:tt)*) => {
         if $cli.verbose > 2 {
-            println!("{}{}", "D : ".bold().color(Color::BrightBlack), format!($argmsg, $($arg)*).color(Color::BrightBlack));
+            println!("{}{}", "D : ".bold().bright_black(), format!($argmsg, $($arg)*).bright_black());
         }
     }
 }

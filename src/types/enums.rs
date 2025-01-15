@@ -572,7 +572,7 @@ pub enum SpiIOMode {
 }
 
 impl From<u16> for SpiIOMode {
-     /// Converts a 16-bit value into a `SpiIOMode` enum.
+    /// Converts a 16-bit value into a `SpiIOMode` enum.
     ///
     /// # Arguments:
     /// - `value`: A 16-bit unsigned integer representing an SPI I/O mode.
@@ -606,7 +606,6 @@ pub enum SpiSpeed {
     _50MHz = 0x7FFF,
     _25MHz = 0x3FFF,
 }
-
 
 impl From<u16> for SpiSpeed {
     /// Converts a 16-bit value into a `SpiSpeed` enum.

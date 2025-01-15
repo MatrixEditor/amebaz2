@@ -1,4 +1,4 @@
-use std::io::{Cursor, Write, Seek};
+use std::io::{Cursor, Seek, Write};
 
 use colored::{Color, Colorize};
 
@@ -20,7 +20,7 @@ pub fn build_parttab(
     cli: &Cli,
     options: &BuildPartitionTableOptions,
 ) -> Result<(), amebazii::error::Error> {
-    if let Some(default_config_file) = &options.generate_config {
+    if let Some(default_config_file) = &options.gen_defaults.generate_config {
         debug!(
             cli,
             "Generating default config file: {:#?}", default_config_file
@@ -50,7 +50,7 @@ pub fn build_parttab(
     }
 
     let mut config: PartitionTableCfg;
-    if let Some(config_file) = &options.config {
+    if let Some(config_file) = &options.config.file {
         let cfgfp = util::open_file(cli, config_file.clone(), Some("Config"));
         if cfgfp.is_err() {
             return Ok(());
@@ -108,20 +108,23 @@ pub fn build_parttab(
         return Ok(());
     }
 
-    let mut outfp = std::fs::File::create(options.file.clone().unwrap())?;
-    if !options.no_calibpat {
-        outfp.write_all(FLASH_PATTERN)?;
-        outfp.write_all(&[0xFF; 16])?;
-    }
-    outfp.write_all(&out)?;
+    if let Some(output_file) = &options.output.file {
+        let mut outfp = std::fs::File::create(output_file)?;
+        if !options.no_calibpat {
+            outfp.write_all(FLASH_PATTERN)?;
+            outfp.write_all(&[0xFF; 16])?;
+        }
+        outfp.write_all(&out)?;
 
-    if options.fill_sector {
-        write_aligned!(&mut outfp, 0x1000, 0xFF);
+        if options.fill_sector {
+            write_aligned!(&mut outfp, 0x1000, 0xFF);
+        }
+        debug!(
+            cli,
+            "Partition table written to: {:#?}",
+            output_file.display()
+        );
     }
-    debug!(
-        cli,
-        "Partition table written to: {:#?}",
-        options.file.clone().unwrap()
-    );
+
     Ok(())
 }

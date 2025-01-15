@@ -1,7 +1,7 @@
 /// Represents a pair of cryptographic keys: a private key and a public key.
 pub struct ConstKeyPair {
-    priv_key: &'static [u8; 32],  // The private key (32 bytes)
-    pub_key: &'static [u8; 32],   // The public key (32 bytes)
+    priv_key: &'static [u8; 32], // The private key (32 bytes)
+    pub_key: &'static [u8; 32],  // The public key (32 bytes)
 }
 
 impl ConstKeyPair {
@@ -62,6 +62,8 @@ pub const XIP_IV: &[u8; 16] = b"\x94\x87\x94\x87\x94\x87\x94\x87\x94\x87\x94\x87
 pub const FLASH_PATTERN: &[u8; 16] =
     b"\x99\x99\x96\x96\x3f\xcc\x66\xfc\xc0\x33\xcc\x03\xe5\xdc\x31\x62";
 
+pub const DEFAULT_VALID_PATTERN: &[u8; 8] = &[0, 1, 2, 3, 4, 5, 6, 7];
+
 // Default cryptographic key pair for general use in encryption/decryption images.
 pub const KEY_PAIR_000: ConstKeyPair = ConstKeyPair::new(
     b"\xa0\xd6\xda\xe7\xe0b\xca\x94\xcb\xb2\x94\xbf\x89k\x9fh\xcf\x848wBV\xact\x03\xcaO\xd9\xa1\xc9VO",
@@ -85,4 +87,3 @@ pub const KEY_PAIR_003: ConstKeyPair = ConstKeyPair::new(
     b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e_",
     b"\x8f@\xc5\xad\xb6\x8f%bJ\xe5\xb2\x14\xeavzn\xc9M\x82\x9d={^\x1a\xd1\xbao>!8(_"
 );
-

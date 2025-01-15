@@ -379,6 +379,14 @@ impl ImageHeader {
     pub fn get_user_key2(&self) -> DataRefType<32> {
         self.user_key2.as_ref()
     }
+
+    pub fn set_user_key1(&mut self, key: DataType<32>) {
+        self.user_key1 = key;
+    }
+
+    pub fn set_user_key2(&mut self, key: DataType<32>) {
+        self.user_key2 = key;
+    }
 }
 
 // --- Sub-Image Header ---
@@ -631,6 +639,14 @@ impl SectionHeader {
     /// Retrieves the valid pattern.
     pub fn get_valid_pattern(&self) -> &[u8; 8] {
         &self.valid_pattern
+    }
+
+    pub fn set_xip_iv(&mut self, iv: DataType<16>) {
+        self.xip_iv = iv;
+    }
+
+    pub fn set_xip_key(&mut self, key: DataType<16>) {
+        self.xip_key = key;
     }
 }
 
