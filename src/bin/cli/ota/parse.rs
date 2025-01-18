@@ -1,5 +1,5 @@
 use amebazii::types::BootImage;
-use colored::{Color, Colorize};
+use colored::Colorize;
 use openssl::memcmp::eq;
 use std::io::{Read, Seek};
 
@@ -127,7 +127,7 @@ fn dump_subimage(
 ) -> Result<(), amebazii::error::Error> {
     print!("{}: ", "Header".bold());
     if subimage.header.is_encrypt {
-        println!("{}", "encrypted".color(Color::Red).italic());
+        println!("{}", "encrypted".red().italic());
     } else {
         println!();
     }
@@ -155,7 +155,7 @@ fn dump_subimage(
         println!("{}", "disabled".yellow().italic());
         print!("  - Hashing: ");
         if let Some(hash_algo) = &fst.hash_algo {
-            println!("{} ({:?})", "enabled".color(Color::Green), hash_algo);
+            println!("{} ({:?})", "enabled".green(), hash_algo);
             // REVISIT: this does not cover the first signature
             let subimage_hash = subimage.get_hash();
             print!("    - {:?} ", hex::encode(subimage_hash));
@@ -186,7 +186,7 @@ fn dump_subimage(
             }
         }
     } else {
-        println!("{}", "enabled".color(Color::Green));
+        println!("{}", "enabled".green());
     }
 
     println!("\n{}:", "Sections".bold());
@@ -221,7 +221,7 @@ fn dump_bootloader(image: &BootImage) -> Result<(), amebazii::error::Error> {
     println!("\n{}: ", "Security".bold());
     print!("  - Encryption: ");
     if image.header.is_encrypt {
-        println!("{}", "enabled".color(Color::Green));
+        println!("{}", "enabled".green());
     } else {
         println!("{}", "disabled".yellow().italic());
     }

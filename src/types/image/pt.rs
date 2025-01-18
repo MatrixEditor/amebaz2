@@ -205,6 +205,7 @@ impl Record {
     pub fn set_hash_key(&mut self, key: DataType<32>) {
         self.hash_key = key;
     }
+
 }
 
 impl FromStream for Record {
@@ -379,6 +380,20 @@ impl PartTab {
     /// - `record`: The `Record` struct that defines the new partition entry to add.
     pub fn add_record(&mut self, record: Record) {
         self.records.push(record);
+    }
+
+    /// Creates and returns a new record for a specific partition type.
+    ///
+    /// # Arguments:
+    /// - `part_type`: The `PartitionType` enum value representing the type of the new record.
+    ///
+    /// # Returns:
+    /// - A mutable reference to the newly created record.
+    pub fn new_record(&mut self, part_type: PartitionType) -> &mut Record {
+        let mut r = Record::default();
+        r.part_type = part_type;
+        self.records.push(r);
+        return self.records.last_mut().unwrap();
     }
 
     /// Returns the record for a specific partition type.

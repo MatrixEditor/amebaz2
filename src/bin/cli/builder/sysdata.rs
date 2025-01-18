@@ -4,7 +4,7 @@ use amebazii::{
     types::{sysctrl::SystemData, transfer_to},
 };
 
-use colored::{Color, Colorize};
+use colored::Colorize;
 
 use super::BuildSystemDataOptions;
 

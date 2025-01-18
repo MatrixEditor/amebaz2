@@ -1,4 +1,4 @@
-use std::io::{Cursor, Write, Seek};
+use std::io::{Cursor, Seek, Write};
 
 use crate::{
     types::{
@@ -59,6 +59,10 @@ impl BootImage {
     pub fn get_hash(&self) -> &[u8] {
         &self.hash
     }
+
+    pub fn set_text(&mut self, text: Vec<u8>) {
+        self.text = text;
+    }
 }
 
 impl FromStream for BootImage {
@@ -117,6 +121,7 @@ impl AsImage for BootImage {
     /// - `size`: The segment size to set.
     fn set_segment_size(&mut self, size: u32) {
         self.header.segment_size = size as u32;
+        self.entry.length = size - EntryHeader::binary_size() as u32;
     }
 
     /// Computes the signature for the BootImage.

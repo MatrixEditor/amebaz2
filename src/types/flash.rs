@@ -230,6 +230,10 @@ impl Flash {
     pub fn set_fw2(&mut self, fw2_image: ota::OTAImage) {
         self.set_partition(PartitionType::Fw2, Partition::Fw2(fw2_image));
     }
+
+    pub fn set_partition_table(&mut self, pt_image: pt::PartitionTableImage) {
+        self.set_partition(PartitionType::PartTab, Partition::PartitionTable(pt_image));
+    }
 }
 
 impl FromStream for Flash {

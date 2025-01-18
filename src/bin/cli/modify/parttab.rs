@@ -1,12 +1,11 @@
 use colored::Colorize;
-use object::pe::ImageAuxSymbolWeak;
 use std::{
     fs,
     io::{Read, Seek, Write},
 };
 
 use amebazii::{
-    keys::{FLASH_PATTERN, HASH_KEY, KEY_PAIR_003},
+    keys::{FLASH_PATTERN, HASH_KEY},
     types::{
         from_stream, key_from_hex, set_default_segment_size, set_default_signature, transfer_to,
         PartTab, PartitionTableImage, Record,
@@ -164,9 +163,10 @@ fn add_record(
 
     record.part_type = cli_part_type_to_record_type(part_type);
     if info.has_record(record.part_type) {
-        return Err(amebazii::error::Error::InvalidState(
-            format!("Record type {:?} already exists in partition table", record.part_type),
-        ));
+        return Err(amebazii::error::Error::InvalidState(format!(
+            "Record type {:?} already exists in partition table",
+            record.part_type
+        )));
     }
     println!("  [{}] +{:?}", info.get_records().len(), record.part_type);
 

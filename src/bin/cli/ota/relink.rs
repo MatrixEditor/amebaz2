@@ -1,4 +1,4 @@
-use colored::{Color, Colorize};
+use colored::Colorize;
 use object::build::elf::{Builder, SectionData, SectionId, Segment};
 use std::fs;
 use std::path::PathBuf;

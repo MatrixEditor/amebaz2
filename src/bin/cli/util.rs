@@ -1,4 +1,4 @@
-use colored::{Color, Colorize};
+use colored::Colorize;
 use std::{fs, path::PathBuf};
 
 use crate::cli::{debug, error};

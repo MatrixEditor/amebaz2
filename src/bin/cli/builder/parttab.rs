@@ -1,6 +1,6 @@
 use std::io::{Cursor, Seek, Write};
 
-use colored::{Color, Colorize};
+use colored::Colorize;
 
 use crate::cli::{debug, error, util, Cli};
 use amebazii::{

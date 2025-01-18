@@ -1,4 +1,4 @@
-use colored::{Color, Colorize};
+use colored::Colorize;
 use openssl::memcmp::eq;
 use std::{io::Seek, path::PathBuf};
 
@@ -94,9 +94,9 @@ fn dump_partition_table(
         print!("  - {}: ", "UserBin");
         let user_bin = pt.get_user_bin();
         if user_bin.len() > 0 {
-            println!("{}, length={}", "valid".color(Color::Green), user_bin.len());
+            println!("{}, length={}", "valid".green(), user_bin.len());
         } else {
-            println!("{}", "<not set>".color(Color::Yellow).italic());
+            println!("{}", "<not set>".yellow().italic());
         }
 
         println!("  - Fw1 Index: {}", pt.fw1_idx);
