@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 pub mod builder;
 pub mod flash;
+pub mod modify;
 pub mod ota;
 pub mod util;
 
@@ -30,6 +31,29 @@ pub struct Cli {
     pub command: Option<Commands>,
 }
 
+#[derive(Parser)]
+#[command(arg_required_else_help = true)]
+pub struct InputOptions {
+    /// Input file path.
+    #[clap(verbatim_doc_comment)]
+    #[arg(value_name = "INFILE", name = "input_file", required = true)]
+    pub file: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct OutputOptions {
+    /// Output file path where the binary data will be saved.
+    ///
+    /// This argument specifies the path to the file where the generated data
+    /// will be written.
+    #[clap(verbatim_doc_comment)]
+    #[arg(value_name = "OUTFILE", name = "output_file")]
+    pub file: Option<PathBuf>,
+
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    pub force: bool,
+}
+
 /// Main commands in the CLI.
 #[derive(Subcommand)]
 pub enum Commands {
@@ -49,6 +73,12 @@ pub enum Commands {
     Build {
         #[command(subcommand)]
         subcommand: Option<BuildSubCommand>,
+    },
+
+    #[command(arg_required_else_help = true)]
+    Mod {
+        #[command(subcommand)]
+        subcommand: Option<ModSubCommand>,
     },
 }
 
@@ -143,6 +173,16 @@ pub enum BuildSubCommand {
     Sysdata {
         #[command(flatten)]
         options: builder::BuildSystemDataOptions,
+    },
+}
+
+#[derive(Parser)]
+#[clap(verbatim_doc_comment)]
+pub enum ModSubCommand {
+    #[command(arg_required_else_help = true)]
+    Parttab {
+        #[command(flatten)]
+        options: modify::ModParttabOptions,
     },
 }
 

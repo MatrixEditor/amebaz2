@@ -18,7 +18,7 @@ pub struct GenerateConfigOptions {
 }
 
 #[derive(Parser)]
-pub struct ConfigOptions {
+pub struct ConfigInputOptions {
     /// Configuration file to use when building.
     ///
     /// This option allows you to specify a configuration file that contains predefined
@@ -30,24 +30,10 @@ pub struct ConfigOptions {
 }
 
 #[derive(Parser)]
-pub struct OutputOptions {
-    /// Output file path where the binary data will be saved.
-    ///
-    /// This argument specifies the path to the file where the generated data
-    /// will be written.
-    #[clap(verbatim_doc_comment)]
-    #[arg(value_name = "FILE", name = "output_file")]
-    pub file: Option<PathBuf>,
-
-    #[arg(short, long, action = clap::ArgAction::SetTrue)]
-    pub force: bool,
-}
-
-#[derive(Parser)]
 #[clap(verbatim_doc_comment)]
 pub struct BuildPartitionTableOptions {
     #[command(flatten)]
-    pub output: OutputOptions,
+    pub output: super::OutputOptions,
 
     /// Whether to fill the entire sector with data (default: false).
     ///
@@ -59,7 +45,7 @@ pub struct BuildPartitionTableOptions {
     pub fill_sector: bool,
 
     #[command(flatten)]
-    pub config: ConfigOptions,
+    pub config: ConfigInputOptions,
 
     /// Flag to generate default entries for the partition table (default: false).
     ///
@@ -143,10 +129,10 @@ pub struct BuildPartitionTableOptions {
 #[clap(verbatim_doc_comment)]
 pub struct BuildSystemDataOptions {
     #[command(flatten)]
-    pub output: OutputOptions,
+    pub output: super::OutputOptions,
 
     #[command(flatten)]
-    pub config: ConfigOptions,
+    pub config: ConfigInputOptions,
 
     /// Address for OTA2 (Over-the-Air update) system.
     ///

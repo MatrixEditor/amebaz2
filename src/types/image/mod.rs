@@ -77,6 +77,13 @@ impl<T> EncryptedOr<T> {
             EncryptedOr::Plain(_) => true,
         }
     }
+
+    pub fn unwrap(self) -> T {
+        match self {
+            EncryptedOr::Encrypted(_) => panic!("Attempted to unwrap encrypted data"),
+            EncryptedOr::Plain(t) => t,
+        }
+    }
 }
 
 impl<T> AsMut<T> for EncryptedOr<T> {

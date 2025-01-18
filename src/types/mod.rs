@@ -194,7 +194,7 @@ macro_rules! read_valid_data {
     ($target:expr, $length:expr, $reader:expr) => {
         let mut buf = [0u8; $length];
         $reader.read_exact(&mut buf)?;
-        if !is_valid_data!(buf) {
+        if is_valid_data!(buf) {
             $target = Some(buf);
         }
     };

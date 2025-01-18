@@ -392,6 +392,38 @@ impl PartTab {
     pub fn get_record(&self, part_type: PartitionType) -> Option<&Record> {
         return self.records.iter().find(|r| r.part_type == part_type);
     }
+
+    /// Returns the record for a specific partition type.
+    ///
+    /// # Arguments:
+    /// - `part_type`: The `PartitionType` enum value representing the partition type.
+    ///
+    /// # Returns:
+    /// - `Some(&mut Record)` if the record for the given partition type is found.
+    /// - `None` if the record for the given partition type is not found.
+    pub fn get_record_mut(&mut self, part_type: PartitionType) -> Option<&mut Record> {
+        return self.records.iter_mut().find(|r| r.part_type == part_type);
+    }
+
+    /// Removes a partition record from the partition table.
+    ///
+    /// # Arguments:
+    /// - `part_type`: The `PartitionType` enum value representing the partition type to remove.
+    pub fn rem_record(&mut self, part_type: PartitionType) {
+        self.records.retain(|r| r.part_type != part_type);
+    }
+
+    /// Checks if a record exists for a specific partition type.
+    ///
+    /// # Arguments:
+    /// - `part_type`: The `PartitionType` enum value representing the partition type to check.
+    ///
+    /// # Returns:
+    /// - `true` if a record exists for the given partition type.
+    /// - `false` if no record exists for the given partition type.
+    pub fn has_record(&self, part_type: PartitionType) -> bool {
+        self.get_record(part_type).is_some()
+    }
 }
 
 impl FromStream for PartTab {
