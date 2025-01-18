@@ -2,10 +2,19 @@
 name = "amebazii"
 version = "0.1.1"
 edition = "2021"
+repository = "https://github.com/MatrixEditor/amebazii"
+include = [
+    "Cargo.toml",
+    "src/**/*",
+    "LICENSE",
+    "README.md",
+    "examples/**/*"
+]
 
 [dependencies]
 byteorder = "1.5.0"
 clap = { version = "4.5.23", features = ["derive"]}
+clap-num = "1.1.1"
 colored = {version = "2.2.0" }
 hex = { version = "0.4.3", features = ["serde"] }
 object = { version = "0.36.7", features = ["build", "write"] }
