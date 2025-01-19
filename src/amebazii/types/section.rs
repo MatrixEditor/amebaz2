@@ -94,7 +94,7 @@ impl Section {
         if alignment == 0 {
             length as u32
         } else {
-            (length + (0x20 - (length % 0x20))) as u32
+            (length + (0x20 - alignment)) as u32
         }
     }
 
@@ -104,6 +104,15 @@ impl Section {
     /// - `u32`: The aligned size of the section, including headers and data.
     pub fn build_aligned_size(&self) -> u32 {
         SectionHeader::binary_size() as u32 + self.build_aligned_length()
+    }
+
+    /// Replaces the current content of the `data` field with a new byte vector.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The new byte data (`Vec<u8>`) to be assigned to the section.
+    pub fn set_data(&mut self, data: Vec<u8>) {
+        self.data = data;
     }
 }
 
@@ -126,7 +135,6 @@ impl FromStream for Section {
         self.data.resize(self.header.length as usize - 0x20, 0x00);
         // Read the actual data for the section into the data buffer
         reader.read_exact(&mut self.data)?;
-
         skip_aligned(reader, 0x20)?;
         Ok(())
     }

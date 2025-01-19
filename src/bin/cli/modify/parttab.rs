@@ -14,7 +14,7 @@ use amebazii::{
     write_padding,
 };
 
-use crate::cli::{debug, error, util, Cli};
+use crate::cli::{debug, util, Cli};
 
 use super::ModParttabOptions;
 
@@ -46,37 +46,17 @@ pub fn modify_parttab(
         if let Some(part_type) = &options.remove {
             rem_record(&mut pt, part_type);
         }
-        save_parttab(options, &mut pt)?;
+        save_parttab(cli, options, &mut pt)?;
     }
     Ok(())
 }
 
 fn save_parttab(
+    cli: &Cli,
     options: &ModParttabOptions,
     image: &mut PartitionTableImage,
 ) -> Result<(), amebazii::error::Error> {
-    let mut outfile;
-    if options.in_place {
-        if let Some(file_path) = &options.input.file {
-            outfile = fs::File::options().write(true).open(file_path)?;
-            println!("  - Output: {}", file_path.display());
-        } else {
-            error!("{}", "Input file not specified");
-            return Ok(());
-        }
-    } else {
-        if let Some(file_path) = &options.output.file {
-            outfile = fs::File::options()
-                .write(true)
-                .create(true)
-                .open(file_path)?;
-            println!("  - Output: {}", file_path.display());
-        } else {
-            error!("{}", "Output file not specified");
-            return Ok(());
-        }
-    }
-
+    let mut outfile = util::open_output_file(cli, Some(&options.input), &options.output)?;
     if options.add_calibration {
         outfile.write_all(FLASH_PATTERN)?;
         write_padding!(&mut outfile, 0x10);

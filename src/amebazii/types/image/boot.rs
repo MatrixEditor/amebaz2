@@ -52,18 +52,56 @@ impl Default for BootImage {
 }
 
 impl BootImage {
+    /// Retrieves the text (code) content of the boot image.
+    ///
+    /// This method provides access to the `text` field of the `BootImage` as a byte slice.
+    /// It allows reading the raw byte data representing the text within the boot image.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use amebazii::types::BootImage;
+    ///
+    /// let boot_image = BootImage::default();
+    /// let text = boot_image.get_text();
+    /// println!("Text data: {:?}", text);
+    /// ```
     pub fn get_text(&self) -> &[u8] {
         &self.text
     }
 
+    /// Retrieves the hash value associated with the boot image.
+    ///
+    /// This method returns the `hash` field of the `BootImage`, which is a byte slice
+    /// representing the hash (cryptographic hash) of the boot image data.
     pub fn get_hash(&self) -> &[u8] {
         &self.hash
     }
 
+    /// Sets the text content of the boot image.
+    ///
+    /// This method updates the `text` field of the `BootImage` with a new vector of bytes.
+    /// It allows modifying the raw byte data that represents the boot image’s text.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - A vector of bytes (`Vec<u8>`) to set as the new text content.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use amebazii::types::BootImage;
+    ///
+    /// let mut boot_image = BootImage::default();
+    /// let new_text = vec![1, 2, 3, 4, 5];
+    /// boot_image.set_text(new_text);
+    /// assert_eq!(boot_image.get_text(), vec![1, 2, 3, 4, 5]);
+    /// ```
     pub fn set_text(&mut self, text: Vec<u8>) {
         self.text = text;
     }
 }
+
 
 impl FromStream for BootImage {
     /// Reads a `BootImage` from a binary stream.

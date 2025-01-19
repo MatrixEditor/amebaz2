@@ -1,4 +1,4 @@
-use crate::cli::{debug, error, Cli};
+use crate::cli::{debug, util, Cli};
 use amebazii::{
     conf::{DataArray, SystemDataCfg},
     types::{sysctrl::SystemData, transfer_to},
@@ -49,13 +49,8 @@ pub fn build_sysdata(
         config.bt_parameter_data = Some(DataArray::new(bt_parameter_data.clone())?);
     }
 
-    if let Some(outfile_path) = &options.output.file {
-        let mut outfp = std::fs::File::create(outfile_path)?;
-        let sysdata: SystemData = config.try_into()?;
-        transfer_to(&sysdata, &mut outfp)?;
-        debug!(cli, "System data written to: {:#?}", outfile_path.display());
-    } else {
-        error!("{}", "No output file specified.");
-    }
+    let mut output = util::open_output_file(cli, None, &options.output)?;
+    let sysdata: SystemData = config.try_into()?;
+    transfer_to(&sysdata, &mut output)?;
     Ok(())
 }

@@ -244,6 +244,10 @@ impl AsImage for SubImage {
     /// - `size`: The size to set for the SubImage's segment.
     fn set_segment_size(&mut self, size: u32) {
         self.header.segment_size = size;
+        // REVISIT: by default, the partition size is 0
+        // if let EncryptedOr::Plain(fst) = &mut self.fst {
+        //     fst.partition_size = size - FST::binary_size() as u32;
+        // }
     }
 
     /// Build the segment size for the SubImage.
@@ -333,7 +337,6 @@ impl FromStream for SubImage {
             }
             self.sections = EncryptedOr::Plain(sections);
         }
-
         reader.read_exact(&mut self.hash)?;
         skip_aligned(reader, if self.header.has_next() { 0x4000 } else { 0x40 })?;
         Ok(())
@@ -554,6 +557,62 @@ impl OTAImage {
         self.keyblock
             .get_enc_pubkey_mut()
             .copy_from_slice(signature);
+    }
+
+    /// Computes the checksum for the OTA image by writing it to a buffer.
+    ///
+    /// This method serializes the current `OTAImage` object into a byte buffer and then calculates
+    /// the checksum for the serialized data. The checksum is returned as a 32-bit unsigned integer.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an error if the writing process to the buffer fails.
+    pub fn build_checksum(&self) -> Result<u32, Error> {
+        let mut buffer = Vec::new();
+        let mut cursor = std::io::Cursor::new(&mut buffer);
+
+        self.write_to(&mut cursor)?;
+        Ok(OTAImage::checksum_from_buffer(&buffer))
+    }
+
+    /// Updates the checksum field of the OTA image.
+    ///
+    /// This method resets the `checksum` field to `None` and then calculates and sets the new checksum
+    /// by calling `build_checksum`. It ensures that the checksum field is always up-to-date.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut ota_image = /* ... */;
+    /// if let Err(e) = ota_image.update_checksum() {
+    ///     eprintln!("Failed to update checksum: {}", e);
+    /// }
+    /// ```
+    pub fn update_checksum(&mut self) -> Result<(), Error> {
+        self.checksum = None;
+        self.checksum = Some(self.build_checksum()?);
+        Ok(())
+    }
+
+    /// Updates the OTA image signature using the provided public key.
+    ///
+    /// This method generates a new OTA signature and updates the `keyblock` field with the
+    /// signature. If a key is provided, it will be used in the signing process; otherwise,
+    /// the default behavior is applied.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - An optional reference to a byte slice (`&[u8]`) representing the public key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the signing process fails.
+    pub fn update_ota_signature(&mut self, key: Option<&[u8]>) -> Result<(), Error> {
+        let new_signature = OTAImage::build_ota_signature(self, key)?;
+        self.keyblock
+            .get_enc_pubkey_mut()
+            .copy_from_slice(&new_signature);
+        Ok(())
     }
 
     /// Calculates a checksum from a byte buffer by summing all the byte values and applying a bitmask.

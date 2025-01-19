@@ -257,31 +257,15 @@ impl FromStream for ImageHeader {
         // Skip the next byte (reserved - seems to be pkey_index)
         read_padding!(reader, 1);
 
-        let flags = reader.read_u8()?;
-        let key1_valid = flags & 0b01 == 0x01;
-        let key2_valid = flags & 0b10 == 0x02;
+        // REVIIST: unused
+        let _flags = reader.read_u8()?;
 
         read_padding!(reader, 8);
         self.serial = reader.read_u32::<LittleEndian>()?;
         read_padding!(reader, 8);
 
-        // REVISIT:
-        if key1_valid {
-            let mut key = [0; 32];
-            reader.read_exact(&mut key)?;
-            self.user_key1 = Some(key);
-        } else {
-            read_padding!(reader, 32);
-        }
-
-        if key2_valid {
-            let mut key = [0; 32];
-            reader.read_exact(&mut key)?;
-            self.user_key2 = Some(key);
-        } else {
-            read_padding!(reader, 32);
-        }
-
+        read_valid_data!(self.user_key1, 32, reader);
+        read_valid_data!(self.user_key2, 32, reader);
         Ok(())
     }
 }
@@ -380,10 +364,20 @@ impl ImageHeader {
         self.user_key2.as_ref()
     }
 
+    /// Sets the first user key (`user_key1`) in the image header.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - A `DataType<32>` representing the new value for `user_key1`.
     pub fn set_user_key1(&mut self, key: DataType<32>) {
         self.user_key1 = key;
     }
 
+    /// Sets the second user key (`user_key2`) in the image header.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - A `DataType<32>` representing the new value for `user_key2`.
     pub fn set_user_key2(&mut self, key: DataType<32>) {
         self.user_key2 = key;
     }
@@ -575,13 +569,14 @@ impl ToStream for SectionHeader {
         writer.write_u8(self.xip_page_size as u8)?;
         writer.write_u8(self.xip_block_size)?;
 
-        writer.write_all(&[0xFF; 4])?;
+        write_padding!(writer, 4);
         writer.write_all(&self.valid_pattern)?;
         writer.write_u8(self.xip_key_iv_valid() as u8)?;
-        writer.write_all(&[0xFF; 7])?;
+        write_padding!(writer, 7);
 
         write_data!(writer, self.xip_key, 16);
         write_data!(writer, self.xip_iv, 16);
+        write_padding!(writer, 32);
         Ok(())
     }
 }
@@ -736,7 +731,7 @@ impl FromStream for EntryHeader {
             0xFFFF_FFFF => None,
             address => Some(address),
         };
-        reader.seek(io::SeekFrom::Current(20))?;
+        read_padding!(reader, 20);
         Ok(())
     }
 }
@@ -758,7 +753,7 @@ impl ToStream for EntryHeader {
         writer.write_u32::<LittleEndian>(self.length)?;
         writer.write_u32::<LittleEndian>(self.load_address)?;
         writer.write_u32::<LittleEndian>(self.entry_address.unwrap_or(0xFFFF_FFFF))?;
-        writer.write_all(&[0xFF; 20])?;
+        write_padding!(writer, 20);
         Ok(())
     }
 }

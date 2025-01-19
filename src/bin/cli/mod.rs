@@ -14,6 +14,7 @@ mod headings {
     pub const ADDRESS_OPTIONS: &str = "Address Options";
     pub const SYSDATA_OPTIONS: &str = "SystemData Options";
     pub const PART_OPTIONS: &str = "Partition Options";
+    pub const OUTPUT_OPTIONS: &str = "Output Options";
 }
 
 /// AmebaZ2 Tools to work with OTA and flash images
@@ -40,6 +41,18 @@ pub struct InputOptions {
     pub file: Option<PathBuf>,
 }
 
+pub trait OutputOptionsExt {
+    fn file(&self) -> Option<PathBuf>;
+
+    fn force(&self) -> bool {
+        false
+    }
+
+    fn in_place(&self) -> bool {
+        false
+    }
+}
+
 #[derive(Parser)]
 pub struct OutputOptions {
     /// Output file path where the binary data will be saved.
@@ -50,8 +63,63 @@ pub struct OutputOptions {
     #[arg(value_name = "OUTFILE", name = "output_file")]
     pub file: Option<PathBuf>,
 
+    /// Overwrite the output file if it already exists.
     #[arg(long, action = clap::ArgAction::SetTrue)]
     pub force: bool,
+}
+
+impl OutputOptionsExt for OutputOptions {
+    fn file(&self) -> Option<PathBuf> {
+        self.file.clone()
+    }
+
+    fn force(&self) -> bool {
+        self.force
+    }
+}
+
+#[derive(Parser)]
+pub struct OutputOptionsInPlace {
+    /// Output file path where the binary data will be saved.
+    ///
+    /// This argument specifies the path to the file where the generated data
+    /// will be written.
+    #[clap(verbatim_doc_comment)]
+    #[arg(
+        value_name = "OUTFILE",
+        name = "output_file",
+        conflicts_with = "in_place",
+        required_unless_present = "in_place"
+    )]
+    pub file: Option<PathBuf>,
+
+    /// Overwrite the output file if it already exists.
+    #[arg(long, action = clap::ArgAction::SetTrue, help_heading = headings::OUTPUT_OPTIONS)]
+    pub force: bool,
+
+    /// Edit the input file in-place.
+    #[arg(
+        short,
+        long,
+        action = clap::ArgAction::SetTrue,
+        conflicts_with = "output_file",
+        help_heading = headings::OUTPUT_OPTIONS
+    )]
+    pub in_place: bool,
+}
+
+impl OutputOptionsExt for OutputOptionsInPlace {
+    fn file(&self) -> Option<PathBuf> {
+        self.file.clone()
+    }
+
+    fn force(&self) -> bool {
+        self.force
+    }
+
+    fn in_place(&self) -> bool {
+        self.in_place
+    }
 }
 
 /// Main commands in the CLI.
@@ -100,13 +168,8 @@ pub enum FlashSubCommand {
     /// Split a flash image file into partitions and store them in a directory.
     #[command(arg_required_else_help = true)]
     Split {
-        /// The flash image file to split (must start with calibration pattern)
-        #[arg(value_name = "FILE")]
-        file: Option<PathBuf>,
-
-        /// The directory to store the partitions
-        #[arg(value_name = "DIR")]
-        outdir: Option<PathBuf>,
+        #[command(flatten)]
+        options: flash::SplitOptions,
     },
 
     #[command(arg_required_else_help = true)]
@@ -157,8 +220,20 @@ pub enum OtaSubCommand {
         #[command(flatten)]
         options: Option<ota::RelinkOptions>,
     },
+
+    /// Resign a firmware binary (OTA image)
+    ///
+    /// Example:
+    ///     - amebazii ota resign --key ./key.bin ./ota.bin ./new_ota.bin
+    #[clap(verbatim_doc_comment)]
+    #[command(arg_required_else_help = true)]
+    Resign {
+        #[command(flatten)]
+        options: ota::ReSignOptions,
+    },
 }
 
+/// Builder for Partition tables and mroe
 #[derive(Subcommand)]
 pub enum BuildSubCommand {
     /// Command to build partition tables.
@@ -176,6 +251,7 @@ pub enum BuildSubCommand {
     },
 }
 
+/// Modification operations
 #[derive(Parser)]
 #[clap(verbatim_doc_comment)]
 pub enum ModSubCommand {
@@ -183,6 +259,12 @@ pub enum ModSubCommand {
     Parttab {
         #[command(flatten)]
         options: modify::ModParttabOptions,
+    },
+
+    #[command(arg_required_else_help = true)]
+    Sysdata {
+        #[command(flatten)]
+        options: modify::ModSysctrlOptions,
     },
 }
 

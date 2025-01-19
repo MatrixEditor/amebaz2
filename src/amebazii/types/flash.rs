@@ -215,22 +215,54 @@ impl Flash {
         self.partitions.insert(part_type, partition);
     }
 
+    /// Sets the system partition with the provided system data.
+    ///
+    /// # Arguments
+    ///
+    /// * `system_data` - The data to be written to the system partition, represented as `SystemData`.
     pub fn set_system_partition(&mut self, system_data: SystemData) {
         self.set_partition(PartitionType::Sys, Partition::System(system_data));
     }
 
+    /// Sets the boot partition with the given boot image.
+    ///
+    /// # Arguments
+    ///
+    /// * `boot_image` - A `BootImage` object containing the bootloader image data.
     pub fn set_boot_partition(&mut self, boot_image: boot::BootImage) {
         self.set_partition(PartitionType::Boot, Partition::Bootloader(boot_image));
     }
 
+    /// Sets the first firmware partition with the provided firmware image.
+    ///
+    /// This method configures the first firmware partition (`Fw1`) by passing an `OTAImage` object
+    /// representing the firmware image to the internal `set_partition` method.
+    ///
+    /// # Arguments
+    ///
+    /// * `fw1_image` - An `OTAImage` object containing the first firmware image to be stored.
     pub fn set_fw1(&mut self, fw1_image: ota::OTAImage) {
         self.set_partition(PartitionType::Fw1, Partition::Fw1(fw1_image));
     }
 
+    /// Sets the second firmware partition with the given firmware image.
+    ///
+    /// This method configures the second firmware partition (`Fw2`) by passing an `OTAImage` object
+    /// representing the firmware image. It ensures that the firmware data is correctly placed in the
+    /// `Fw2` partition.
+    ///
+    /// # Arguments
+    ///
+    /// * `fw2_image` - An `OTAImage` object containing the second firmware image to be stored.
     pub fn set_fw2(&mut self, fw2_image: ota::OTAImage) {
         self.set_partition(PartitionType::Fw2, Partition::Fw2(fw2_image));
     }
 
+    /// Sets the partition table with the provided partition table image.
+    ///
+    /// # Arguments
+    ///
+    /// * `pt_image` - A `PartitionTableImage` object representing the partition table to be stored.
     pub fn set_partition_table(&mut self, pt_image: pt::PartitionTableImage) {
         self.set_partition(PartitionType::PartTab, Partition::PartitionTable(pt_image));
     }

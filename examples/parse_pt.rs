@@ -14,7 +14,7 @@ fn main() {
     // 2. parse using FromStream trait
     let image: PartitionTableImage = from_stream(&mut f).unwrap();
 
-    // because the partition table can be empty, we need to check if it
+    // because the partition table can be encrypted, we need to check if it
     // is actually encrypted
     if let EncryptedOr::Plain(pt) = image.pt {
         // partition table info can be used

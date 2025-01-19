@@ -2,32 +2,34 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 
 use super::{enums::*, BinarySize, DataRefType, DataType, FromStream, ToStream};
-use crate::{error::Error, is_valid_data, keys::DEFAULT_VALID_PATTERN, read_padding, util::write_fill, write_padding};
+use crate::{
+    error::Error, is_valid_data, keys::DEFAULT_VALID_PATTERN, read_padding, util::write_fill,
+    write_data, write_padding,
+};
 
-// Layout
-//
-//          +-------+-------+--------+-------+-----------+---------------+---+---+---+---+----+----+----+----+----+----+
-//          | 0     | 1     | 2      | 3     | 4         | 5             | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
-// +========+=======+=======+========+=======+===========+===============+===+===+===+===+====+====+====+====+====+====+
-// | 0x00   | enc_algo: u16 | hash_algo: u16 |          part_size: u32           |          valipat: bytes[8]          |
-// +--------+--------------------------------+-----------+---------------+---------------------------------------------+
-// | 0x10   |                                | flags: u8 | key_flags: u8 |                                             |
-// +--------+--------------------------------+-----------+---------------+---------------------------------------------+
-// | 0x20   |                                          cipher_key: bytes[32]                                           |
-// +--------+----------------------------------------------------------------------------------------------------------+
-// | 0x40   |                                           cipher_iv: bytes[16]                                           |
-// +--------+----------------------------------------------------------------------------------------------------------+
-// | 0x50   |                                                                                                          |
-// +--------+----------------------------------------------------------------------------------------------------------+
-// size = 0x60 = 96 bytes
-
-/// =====================================================================================
-/// Firmware Security Table (FST)
-/// =====================================================================================
+/// # Firmware Security Table (FST)
 ///
 /// The `FST` struct represents the firmware security table (FST) of a sub-image within a
 /// firmware image. This table holds information about the encryption algorithm, hash
 /// algorithm, security keys, and other configuration for firmware partitions.
+///
+/// ## Layout
+/// ```text
+///          +-------+-------+--------+-------+-----------+---------------+---+---+---+---+----+----+----+----+----+----+
+///          | 0     | 1     | 2      | 3     | 4         | 5             | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+/// +========+=======+=======+========+=======+===========+===============+===+===+===+===+====+====+====+====+====+====+
+/// | 0x00   | enc_algo: u16 | hash_algo: u16 |          part_size: u32           |          valipat: bytes[8]          |
+/// +--------+--------------------------------+-----------+---------------+---------------------------------------------+
+/// | 0x10   |                                | flags: u8 | key_flags: u8 |                                             |
+/// +--------+--------------------------------+-----------+---------------+---------------------------------------------+
+/// | 0x20   |                                          cipher_key: bytes[32]                                           |
+/// +--------+----------------------------------------------------------------------------------------------------------+
+/// | 0x40   |                                           cipher_iv: bytes[16]                                           |
+/// +--------+----------------------------------------------------------------------------------------------------------+
+/// | 0x50   |                                                                                                          |
+/// +--------+----------------------------------------------------------------------------------------------------------+
+/// ```
+/// - Size = 0x60 = 96 bytes
 ///
 /// **Note:** Encryption and cipher-related fields are placeholders, as encryption is not
 /// currently supported. These fields are implemented as `Option<T>` to allow future extension
@@ -35,11 +37,17 @@ use crate::{error::Error, is_valid_data, keys::DEFAULT_VALID_PATTERN, read_paddi
 ///
 /// # Example:
 /// ```rust
-/// let fst = FST::default();
+/// let mut fst = FST::default();
+///
+/// // set hash algorithm
+/// fst.hash_algo = Some(HashAlgo::Sha256);
+///
+/// // clear encryption algorithm
+/// fst.enc_algo = None;
 /// ```
 #[derive(Debug)]
 pub struct FST {
-    // encryption algorithm (not supported)
+    /// encryption algorithm (not supported)
     pub enc_algo: Option<EncryptionAlgo>,
 
     /// The hash algorithm used for hashing. Default is `Sha256`.
@@ -166,7 +174,7 @@ impl FromStream for FST {
         let flags = reader.read_u8()? & 0b11;
         let enc_enabled = flags & 0b01 == 0x01;
         let hash_enabled = flags & 0b10 != 0;
-
+        // REVISIT: necessary?
         if !enc_enabled {
             self.enc_algo = None;
         }
@@ -220,17 +228,8 @@ impl ToStream for FST {
 
         // padding
         write_padding!(writer, 10);
-        if let Some(cipher_key) = &self.cipher_key {
-            writer.write_all(cipher_key)?;
-        } else {
-            write_padding!(writer, 32);
-        }
-        if let Some(cipher_iv) = &self.cipher_iv {
-            writer.write_all(cipher_iv)?;
-        } else {
-            write_padding!(writer, 16);
-        }
-
+        write_data!(writer, self.cipher_key, 32);
+        write_data!(writer, self.cipher_iv, 16);
         // align to 96
         write_padding!(writer, 16);
         Ok(())

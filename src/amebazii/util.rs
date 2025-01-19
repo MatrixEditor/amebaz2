@@ -1,3 +1,5 @@
+//! Utility functions for creating signatures and hashes.
+
 use openssl::md::Md;
 use openssl::md_ctx::MdCtx;
 use openssl::pkey::PKey;

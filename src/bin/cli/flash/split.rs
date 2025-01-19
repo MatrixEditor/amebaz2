@@ -9,54 +9,58 @@ use crate::cli::{debug, error, util, Cli};
 
 use amebazii::types::{from_stream, EncryptedOr, PartitionTableImage, PartitionType, Record};
 
-pub fn split_flash(
-    cli: &Cli,
-    file: PathBuf,
-    outdir: PathBuf,
-) -> Result<(), amebazii::error::Error> {
-    let fp = util::open_file(cli, file, None);
-    if fp.is_err() {
-        return Ok(());
-    }
+pub fn split_flash(cli: &Cli, options: &super::SplitOptions) -> Result<(), amebazii::error::Error> {
+    if let Some(input_file) = &options.input.file {
+        let input = util::open_file(cli, input_file.clone(), None);
+        if input.is_err() {
+            return Ok(());
+        }
 
-    if !outdir.is_dir() {
-        debug!(cli, "Creating directory {}", outdir.display());
-        std::fs::create_dir_all(&outdir)?;
-    }
+        let mut input = input.unwrap();
+        input.seek(io::SeekFrom::Start(32))?;
+        let pt_image: PartitionTableImage = from_stream(&mut input)?;
 
-    let mut reader = fp.unwrap();
-    reader.seek(io::SeekFrom::Start(32))?;
-    let pt_image: PartitionTableImage = from_stream(&mut reader)?;
-
-    if let EncryptedOr::Plain(pt) = pt_image.pt {
-        write_pt(cli, &mut reader, &outdir)?;
-
-        let file_size = reader.metadata().unwrap().len() as u32;
-        for (i, record) in pt.get_records().iter().enumerate() {
-            println!("[{}] {} ({:?})", i, "Record".bold(), record.part_type);
-            if record.start_addr >= file_size {
-                println!(
-                    "  - {}",
-                    format!(
-                        "Start address 0x{:06x} is larger than file size 0x{:06x} - skipping...",
-                        record.start_addr, file_size
-                    )
-                    .yellow()
-                );
-                continue;
+        if let Some(outdir) = &options.outdir {
+            if !outdir.is_dir() {
+                debug!(cli, "Creating directory {}", outdir.display());
+                std::fs::create_dir_all(&outdir)?;
             }
 
-            println!(
-                "  - Offset: 0x{:06x}, Length: 0x{:06x})",
-                record.start_addr, record.length
-            );
-            write_record(cli, &record, &i, &mut reader, &outdir)?;
+            if let EncryptedOr::Plain(pt) = pt_image.pt {
+                write_pt(cli, &mut input, &outdir)?;
+
+                let file_size = input.metadata().unwrap().len() as u32;
+                for (i, record) in pt.get_records().iter().enumerate() {
+                    println!("[{}] {} ({:?})", i, "Record".bold(), record.part_type);
+                    if record.start_addr >= file_size {
+                        println!(
+                            "  - {}",
+                            format!(
+                                "Start address 0x{:06x} is larger than file size 0x{:06x} - skipping...",
+                                record.start_addr, file_size
+                            )
+                            .yellow()
+                        );
+                        continue;
+                    }
+
+                    println!(
+                        "  - Offset: 0x{:06x}, Length: 0x{:06x})",
+                        record.start_addr, record.length
+                    );
+                    write_record(cli, &record, &i, &mut input, &outdir)?;
+                }
+            } else {
+                error!(
+                    "{}",
+                    "Partition table is encrypted (decryption not supported)"
+                );
+            }
+
+            if options.include_common {
+                write_common(cli, &mut input, &outdir)?;
+            }
         }
-    } else {
-        error!(
-            "{}",
-            "Partition table is encrypted (decryption not supported)"
-        );
     }
 
     Ok(())
@@ -111,5 +115,25 @@ fn write_record(
     debug!(cli, "Writing record to {}", file_path.display());
     let mut writer = fs::File::create(file_path)?;
     io::copy(&mut reader, &mut writer)?;
+    Ok(())
+}
+
+fn write_common(
+    cli: &Cli,
+    fp: &mut std::fs::File,
+    outdir: &PathBuf,
+) -> Result<(), amebazii::error::Error> {
+
+    // we assume system is at 0x1000
+    fp.seek(io::SeekFrom::Start(0x1000))?;
+    let mut reader = fp.take(0x1000);
+
+    let file_path = outdir.join("sysdata.bin");
+    debug!(cli, "Writing system data to {}", file_path.display());
+    let mut writer = fs::File::create(file_path)?;
+    io::copy(&mut reader, &mut writer)?;
+
+    // REVISIT: include calibration and reserved regions?
+
     Ok(())
 }

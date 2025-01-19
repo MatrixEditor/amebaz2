@@ -11,6 +11,7 @@ use amebazii::map::{
 mod dump;
 mod parse;
 mod relink;
+mod resign;
 
 #[derive(Parser)]
 pub struct RelinkOptions {
@@ -98,6 +99,29 @@ pub struct ParseOptions {
     boot: bool,
 }
 
+#[derive(Parser)]
+pub struct ReSignOptions {
+    #[command(flatten)]
+    pub input: super::InputOptions,
+
+    #[command(flatten)]
+    pub output: super::OutputOptionsInPlace,
+
+    /// The key to be used for the signing operation. (hex or file)
+    #[arg(short, long, value_name = "KEY")]
+    pub key: Option<String>,
+
+    /// Flag indicating whether to use MD5 for hashing.
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    pub use_md5: bool,
+
+    /// Flag to indicate whether the same algorithm should be used.
+    ///
+    /// This flag ensures that the signing operation uses the same algorithm as the previous one.
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    pub same_algo: bool,
+}
+
 fn get_address_range(
     start: &Option<u64>,
     end: &Option<u64>,
@@ -117,7 +141,7 @@ pub fn main(cli: &Cli, command: Option<&OtaSubCommand>) -> Result<(), Error> {
             if let Some(options) = options {
                 parse::parse(cli, options)?;
             }
-        },
+        }
         Some(OtaSubCommand::Dump {
             file,
             subimage,
@@ -130,6 +154,9 @@ pub fn main(cli: &Cli, command: Option<&OtaSubCommand>) -> Result<(), Error> {
             outdir.clone().unwrap(),
             *section,
         )?,
+        Some(OtaSubCommand::Resign { options }) => {
+            resign::re_sign(cli, options)?;
+        }
         Some(OtaSubCommand::Relink { options }) => {
             // wrapping these options is somewhat ugly
             if let Some(options) = options {

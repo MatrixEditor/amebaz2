@@ -36,7 +36,6 @@ pub struct CombineOptions {
     pub boot: Option<PathBuf>,
 
     // other partitions are subject to future implementation
-
     #[arg(long, action = clap::ArgAction::SetTrue)]
     pub pt_has_calibpat: bool,
 
@@ -44,17 +43,27 @@ pub struct CombineOptions {
     pub no_overwrite: bool,
 }
 
+#[derive(Parser)]
+#[clap(verbatim_doc_comment)]
+pub struct SplitOptions {
+    #[command(flatten)]
+    pub input: super::InputOptions,
+
+    /// The directory to store the partitions
+    #[arg(value_name = "DIR")]
+    pub outdir: Option<PathBuf>,
+
+    #[arg(short = 'c', long, action = clap::ArgAction::SetTrue)]
+    pub include_common: bool,
+}
+
 pub fn main(cli: &Cli, subcommand: Option<&FlashSubCommand>) -> Result<(), amebazii::error::Error> {
     match subcommand {
         Some(FlashSubCommand::Parse { file, pt_only }) => {
             parse::parse(cli, file.clone().expect("File is required"), *pt_only)?;
         }
-        Some(FlashSubCommand::Split { file, outdir }) => {
-            split::split_flash(
-                cli,
-                file.clone().expect("File is required"),
-                outdir.clone().expect("Outdir is required"),
-            )?;
+        Some(FlashSubCommand::Split { options }) => {
+            split::split_flash(cli, options)?;
         }
         Some(FlashSubCommand::Combine { options }) => match options {
             Some(options) => {
