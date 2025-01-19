@@ -1,0 +1,47 @@
+name: Documentation
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  docs:
+    permissions:
+      contents: write
+
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persistent-credentials: false
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: build docs
+        run: cargo doc --no-deps --features documentation
+
+      - name: Finalize documentation
+        run: |
+          CRATE_NAME=$(echo '${{ github.repository }}-lib' | tr '[:upper:]' '[:lower:]' | cut -f2 -d"/")
+          echo "<meta http-equiv=\"refresh\" content=\"0; url=${CRATE_NAME/-/_}\">" > target/doc/index.html
+          touch target/doc/.nojekyll
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Documentation
+          path: target/doc
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        if: ${{ github.ref == 'refs/heads/master' }}
+        with:
+          publish_dir: target/doc

@@ -1,6 +1,6 @@
 [package]
 name = "amebazii"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 repository = "https://github.com/MatrixEditor/amebazii"
 include = [
@@ -22,3 +22,15 @@ openssl = "0.10.68"
 serde = { version = "1.0.217", features = ["derive"] }
 serde-aux = "4.5.0"
 serde_json = "1.0.134"
+
+[lib]
+name = "amebazii"
+path = "src/amebazii/lib.rs"
+
+[[bin]]
+name = "amebazii"
+test = false
+doc = false
+
+[features]
+documentation = []

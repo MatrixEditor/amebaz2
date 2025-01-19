@@ -19,7 +19,7 @@ pub struct RelinkOptions {
     #[arg(value_name = "FILE")]
     file: Option<PathBuf>,
 
-    /// The output firmware file after relinking.
+    /// The output ELF file
     #[arg(value_name = "OUTFILE")]
     outfile: Option<PathBuf>,
 

@@ -1,4 +1,7 @@
-use amebazii::types::BootImage;
+use amebazii::{
+    keys::HASH_KEY,
+    types::{BootImage, HashAlgo, KeyBlock},
+};
 use colored::Colorize;
 use openssl::memcmp::eq;
 use std::io::{Read, Seek};
@@ -23,7 +26,7 @@ pub fn parse(cli: &Cli, options: &ParseOptions) -> Result<(), amebazii::error::E
         if options.boot {
             let image: BootImage = from_stream(&mut fp)?;
             debug!(cli, "Finished parsing file: {}", input_file.display());
-            dump_bootloader(&image)?;
+            dump_bootloader(&image, &mut fp)?;
         } else {
             let image: OTAImage = from_stream(&mut fp)?;
             debug!(cli, "Finished parsing file: {}", input_file.display());
@@ -205,7 +208,10 @@ fn dump_subimage(
     Ok(())
 }
 
-fn dump_bootloader(image: &BootImage) -> Result<(), amebazii::error::Error> {
+fn dump_bootloader(
+    image: &BootImage,
+    fp: &mut std::fs::File,
+) -> Result<(), amebazii::error::Error> {
     println!(
         "{} {} {}",
         "=".repeat(44),
@@ -225,7 +231,23 @@ fn dump_bootloader(image: &BootImage) -> Result<(), amebazii::error::Error> {
     } else {
         println!("{}", "disabled".yellow().italic());
     }
-    println!("  - Hash: {}", hex::encode(image.get_hash()));
+    let image_hash = image.get_hash();
+    print!("  - Hash: {}", hex::encode(image_hash));
+
+    fp.seek(std::io::SeekFrom::Start(0))?;
+    let mut buffer = vec![
+        0x00;
+        (image.header.segment_size as usize + KeyBlock::binary_size())
+            + ImageHeader::binary_size()
+    ];
+    fp.read_exact(&mut buffer)?;
+    let hash = HashAlgo::Sha256.compute_hash(&buffer, Some(HASH_KEY))?;
+    if eq(&hash, image_hash) {
+        println!("{}", " OK".green());
+    } else {
+        println!("{}", " invalid/encrypted/wrong key".red().italic());
+        println!("  - Hash: {}", hex::encode(hash));
+    }
 
     if !image.header.is_encrypt {
         println!("\n{}:", "Sections".bold());

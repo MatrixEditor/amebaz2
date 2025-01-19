@@ -137,7 +137,7 @@ pub enum PartitionType {
     // other types not supported yet
 }
 
-/// Represents the options for modifying system control settings, like OTA switch configurations.
+/// Modify system control settings, like OTA switch configurations.
 #[derive(Parser)]
 #[clap(verbatim_doc_comment)]
 #[command(arg_required_else_help = true)]
