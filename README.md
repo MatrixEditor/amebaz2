@@ -10,12 +10,12 @@ Open Source Implementation of OTA and Flash Generation for the AmebaZ2 SDK in Ru
 Features:
 
 * Parse OTA and Flash images (w/ extraction support)
-* [_**Relink**_](#relinking) existing OTA images back to their compiled application binary (ELF) 🎊
-* _**Resign**_ existing OTA images using custom keys. 🎉
+* [_**Relink**_](src/amebazii/doc/cmd_ota.md#relinking) existing OTA images back to their compiled application binary (ELF) 🎊
+* [_**Resign**_](src/amebazii/doc/cmd_ota.md#resigning-firmware-files) existing OTA images using custom keys. 🎉
 * Build a partition table and system data partition
 
 
-Documentation for CLI has moved to [amebazii/doc](src/amebazii/doc/) and general API docs are avaiable on Github-Pages [here >>]().
+Documentation for CLI has moved to [amebazii/doc](src/amebazii/doc/) and general API docs are avaiable on Github-Pages [here >>](https://matrixeditor.github.io/amebaz2/).
 
 ## Disclaimer
 
