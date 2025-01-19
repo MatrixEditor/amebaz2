@@ -15,7 +15,7 @@ Features:
 * Build a partition table and system data partition
 
 
-Documentation for CLI has moved to [amebazii/doc](src/amebazii/doc/) and general API docs are avaiable on Github-Pages [here >>](https://matrixeditor.github.io/amebaz2/).
+Documentation for CLI has moved to [amebazii/doc](src/amebazii/doc/) and general API docs are avaiable on Github-Pages [here >>](https://matrixeditor.github.io/amebaz2/amebazii/).
 
 ## Disclaimer
 
