@@ -1,0 +1,131 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="OTA Firmware Command Line Interface"><title>amebazii::doc::cli::ota - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-42caa33d.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="amebazii" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0 (9fc6b4312 2025-01-07)" data-channel="1.84.0" data-search-js="search-92e6798f.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../amebazii/index.html">amebazii</a><span class="version">0.1.2</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module ota</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#ota-firmware-command-line-interface" title="OTA Firmware Command Line Interface">OTA Firmware Command Line Interface</a><ul><li><a href="#tldr" title="TL;DR">TL;DR</a></li><li><a href="#parsing-ota-images-and-boot-images" title="Parsing OTA Images (and Boot Images)">Parsing OTA Images (and Boot Images)</a></li><li><a href="#relinking" title="Relinking">Relinking</a></li><li><a href="#extraction" title="Extraction">Extraction</a></li><li><a href="#resigning-firmware-files" title="Resigning Firmware Files">Resigning Firmware Files</a></li></ul></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In amebazii::<wbr>doc::<wbr>cli</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../../index.html">amebazii</a>::<wbr><a href="../../index.html">doc</a>::<wbr><a href="../index.html">cli</a></span><h1>Module <span>ota</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/amebazii/doc/mod.rs.html#3">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="ota-firmware-command-line-interface"><a class="doc-anchor" href="#ota-firmware-command-line-interface">§</a>OTA Firmware Command Line Interface</h2><h3 id="tldr"><a class="doc-anchor" href="#tldr">§</a>TL;DR</h3><div class="example-wrap"><pre class="language-bash"><code># parse image and get info (validates signatures)
+amebazii ota parse [OTAFILE]
+
+# extract sections from subimage to directory
+amebazii ota dump -I 0 [OTAFILE] [DIR]
+
+# recreate application binary for reversing
+amebazii ota relink -c [OTAFILE] [OUTFILE]
+
+# sign existing image using custom key
+amebazii ota resign [OTAFILE] -k [KEY] [OUTFILE]</code></pre></div><h3 id="parsing-ota-images-and-boot-images"><a class="doc-anchor" href="#parsing-ota-images-and-boot-images">§</a>Parsing OTA Images (and Boot Images)</h3>
+<p>The current implementation allows parsing and verification of OTA firmware update images and boot images.</p>
+<p><strong>SYNOPSIS</strong></p>
+<div class="example-wrap"><pre class="language-bash"><code>amebazii ota parse [--boot] &lt;FILE&gt;</code></pre></div>
+<p>Using the example binary from the <a href="/assets/">/assets</a> directory, the output should be similar to the following:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>$ amebazii ota parse assets/fw1.bin
+============================================ OTA Image =============================================
+Public Keys:
+  [Hash Public Key] - <span class="string">"68513ef83e396b12ba059a900f36b6d31d11fe1c5d25eb8aa7c550307f9c2405"
+  </span>[<span class="number">0</span>] -  &lt;not set&gt;
+  [<span class="number">1</span>] -  &lt;not set&gt;
+  [<span class="number">2</span>] -  &lt;not set&gt;
+  [<span class="number">3</span>] -  &lt;not set&gt;
+  [<span class="number">4</span>] -  &lt;not set&gt;
+
+OTA-Signature: (using default hash key)
+  - <span class="string">"2b763781b4199d29089a933b3aecd8d65124b1f2cbf8fa3aa17c84ff37be355e" </span>OK
+  - Checksum: <span class="number">0x327dfa5 </span>OK
+====================================================================================================
+
+--------------------------------------------- Subimage ---------------------------------------------
+Header:
+  - Type: FHWSS
+  - Size: <span class="number">0x00002ae0
+  </span>- Serial: <span class="number">100
+
+</span>User Keys:
+  [<span class="number">0</span>] - &lt;not set&gt;
+  [<span class="number">1</span>] - <span class="string">"bb0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+
+</span>Security:
+  - Encryption: disabled
+  - Hashing: enabled (Sha256)
+    - <span class="string">"79ba081144b693fcb04155539bee4f984ee0ca7d490c69ed6375801db1e81c2d" </span>OK
+
+Sections:
+  [<span class="number">0</span>] - SRAM (length: <span class="number">0x00002a20</span>, load: <span class="number">0x10000480</span>, entry: <span class="number">0x10000480</span>)
+----------------------------------------------------------------------------------------------------
+[...]</code></pre></div>
+<p>The <code>--boot</code> flag can be used to parse bootloader images taken from a complete flash image.
+However, verification will be done using the default hash key:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>$ amebazii ota parse --boot bootloader.bin
+============================================ Bootloader ============================================
+Header:
+  - Type: Boot
+  - Size: <span class="number">0x00004020
+  </span>- Serial: <span class="number">0
+
+</span>Security:
+  - Encryption: disabled
+  - Hash: <span class="number">4fe772b044e066fed83d5312edca75ea8ea87ec5e46f32a9a9d95990b3192fd6 </span>OK
+
+Sections:
+  [<span class="number">0</span>] - Bootloader (length: <span class="number">0x00004000</span>, load: <span class="number">0x10038100</span>, entry: <span class="number">0x10038100</span>)
+====================================================================================================</code></pre></div>
+<h3 id="relinking"><a class="doc-anchor" href="#relinking">§</a>Relinking</h3>
+<p><em>Currently searching for the appropriate wording, but relinking seems to describe the process very well.</em></p>
+<p>Based on the information from the OTA we can <em>relink</em> all sections back to a valid ELF binary using the
+power of <a href="https://github.com/gimli-rs/object">gimli-rs/object</a>.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>$ amebazii ota relink --cap-length ./assets/fw1.bin ./fw1.elf
+RAM/FHWS:
+  [<span class="number">0</span>] Secion: SRAM
+      - RAM function table... OK
+      - RAM image signature... OK
+      - DTCM RAM... OK
+XIP:
+  [<span class="number">0</span>] Secion: XIP_C
+      - XIP code cipher section... OK
+  [<span class="number">1</span>] Secion: XIP_P
+      - XIP code plaintext section (rodata)... OK
+      - RAM vector table... OK
+
+Program Headers:
+  Type  Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align   Info
+  LOAD  <span class="number">0x000000 0x00000000 0x00000000 0x00000 0x00000 </span>R   <span class="number">0x10000 </span>Standard sections
+  LOAD  <span class="number">0x010000 0x10000000 0x10000000 0x000a0 0x000a0 </span>RW  <span class="number">0x10000 </span>RAM vector table
+  LOAD  <span class="number">0x010480 0x10000480 0x10000480 0x00070 0x00070 </span>RW  <span class="number">0x10000 </span>RAM function table
+  LOAD  <span class="number">0x0104f0 0x100004f0 0x100004f0 0x00010 0x00010 </span>R   <span class="number">0x10000 </span>RAM image signature
+  LOAD  <span class="number">0x010500 0x10000500 0x10000500 0x02980 0x02980 </span>RWE <span class="number">0x10000 </span>RAM text and rodata
+  LOAD  <span class="number">0x04fa00 0x9b000140 0x9b000140 0x53768 0x53768 </span>RWE <span class="number">0x10000 </span>XIP.C rodata, text
+  LOAD  <span class="number">0x84f8c0 0x9b800140 0x9b800140 0x1e3d0 0x1e3d0 </span>RW  <span class="number">0x10000 </span>XIP.P rodata, text</code></pre></div>
+<div class="warning">
+<p>Even though, one could put that file into Ghidra and start inspecting the code,
+it won’t load all segments correctly –&gt; WIP. Currently, the standard segments
+with custom labels doesn’t get imported properly. All other segments work as
+expected.</p>
+</div>
+<p>To save all sections that will be copied into the final binary, use <code>-s/--save-intermediate &lt;DIR&gt;</code>.</p>
+<h3 id="extraction"><a class="doc-anchor" href="#extraction">§</a>Extraction</h3>
+<p>You can also dump each subimage manually by using <code>dump</code>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>$ amebazii ota dump ./assets/fw1.bin -I [INDEX] [--section INDEX] [OUTDIR/FILE]</code></pre></div>
+<p>Only specifying the subimage index will dump all sections within that subimage to the
+given destination directory. Using the extra option <code>--section</code> you can dump a specific
+section to an output file.</p>
+<p>For example:</p>
+<div class="example-wrap"><pre class="language-bash"><code>$ amebazii ota dump ./assets/fw1.bin -I 0 --section 0 ./test.bin
+[0] Subimage: FHWSS
+    [0] Section: SRAM (Length: 0x00002a20, LoadAddress: 0x10000480, EntryAddress: 0x10000480)</code></pre></div><h3 id="resigning-firmware-files"><a class="doc-anchor" href="#resigning-firmware-files">§</a>Resigning Firmware Files</h3>
+<p>To apply a custom key for signature generation, firmware images can be <em>resigned</em>. If you omit the key
+argument, the default signing key will be applied.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>$ amebazii ota resign [OTAFILE] -k [KEY] [OUTFILE]
+[<span class="number">0</span>] Subimage: FHWSS
+ - Old signature: <span class="number">77223f302b796db80630994fc5e26e280653d6e8d2c98843382686cc3c917b01
+ </span>- New signature: e2127dcf597cb0202e8f6b31406481b43d9b566312af71433de69adeb5036ee2
+
+[<span class="number">1</span>] Subimage: Xip
+ - Old signature: cbdaeebeee049f4189f058db5c93cb6bac35333c4cdf12f5c8b3696e4452b23a
+ - New signature: ed734027fedc74c468f3ee630a1a3aa7a497f4f94663430f0e92c2e1d7ab9b7d
+
+[<span class="number">2</span>] Subimage: Xip
+ - Old signature: <span class="number">8700a6c01dd5850202186a35a86824cf83f6825c6ff86edf989b156de1b12d74
+ </span>- New signature: c5a9e71c36696ee332b5c431e9a9f28845094c17885e0ad125980d66986a3744
+
+[OTA] Old signature: <span class="number">11e82d6903026c5f891cbaebc98f6f334979a07605e0d1002ec7f071109ca7d0
+</span>[OTA] New signature: <span class="number">43575e10e43e6122892717f614d3d0badc37ba81067d5579deadadaa2f107702</span></code></pre></div>
+</div></details></section></div></main></body></html>

@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["amebazii",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.84.0/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.84.0/std/primitive.u16.html\">u16</a>&gt; for <a class=\"struct\" href=\"amebazii/types/image/pt/struct.TrapConfig.html\" title=\"struct amebazii::types::image::pt::TrapConfig\">TrapConfig</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.84.0/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.84.0/std/primitive.u32.html\">u32</a>&gt; for <a class=\"struct\" href=\"amebazii/types/sysctrl/struct.FlashInfo.html\" title=\"struct amebazii::types::sysctrl::FlashInfo\">FlashInfo</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.84.0/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.84.0/std/primitive.u32.html\">u32</a>&gt; for <a class=\"struct\" href=\"amebazii/types/sysctrl/struct.ForceOldImage.html\" title=\"struct amebazii::types::sysctrl::ForceOldImage\">ForceOldImage</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.84.0/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.84.0/std/primitive.u32.html\">u32</a>&gt; for <a class=\"struct\" href=\"amebazii/types/sysctrl/struct.SpiConfig.html\" title=\"struct amebazii::types::sysctrl::SpiConfig\">SpiConfig</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1600]}

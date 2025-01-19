@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["EncryptedOr"],"fn":["build_default_signature","build_segment_size","set_default_segment_size","set_default_signature"],"mod":["boot","ota","pt"],"trait":["AsImage"],"type":["RawImage"]};

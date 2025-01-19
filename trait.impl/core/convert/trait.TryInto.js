@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["amebazii",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.84.0/core/convert/trait.TryInto.html\" title=\"trait core::convert::TryInto\">TryInto</a>&lt;<a class=\"struct\" href=\"amebazii/types/image/pt/struct.PartTab.html\" title=\"struct amebazii::types::image::pt::PartTab\">PartTab</a>&gt; for <a class=\"struct\" href=\"amebazii/conf/pt/struct.PartitionTableCfg.html\" title=\"struct amebazii::conf::pt::PartitionTableCfg\">PartitionTableCfg</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.84.0/core/convert/trait.TryInto.html\" title=\"trait core::convert::TryInto\">TryInto</a>&lt;<a class=\"struct\" href=\"amebazii/types/image/pt/struct.Record.html\" title=\"struct amebazii::types::image::pt::Record\">Record</a>&gt; for <a class=\"struct\" href=\"amebazii/conf/pt/struct.PartitionItemCfg.html\" title=\"struct amebazii::conf::pt::PartitionItemCfg\">PartitionItemCfg</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.84.0/core/convert/trait.TryInto.html\" title=\"trait core::convert::TryInto\">TryInto</a>&lt;<a class=\"struct\" href=\"amebazii/types/sysctrl/struct.SystemData.html\" title=\"struct amebazii::types::sysctrl::SystemData\">SystemData</a>&gt; for <a class=\"struct\" href=\"amebazii/conf/sysctrl/struct.SystemDataCfg.html\" title=\"struct amebazii::conf::sysctrl::SystemDataCfg\">SystemDataCfg</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1377]}
