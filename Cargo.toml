@@ -1,6 +1,6 @@
 [package]
 name = "amebazii"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 repository = "https://github.com/MatrixEditor/amebazii"
 include = [
@@ -10,6 +10,7 @@ include = [
     "README.md",
     "examples/**/*"
 ]
+rust-version="1.81.0"
 
 [dependencies]
 byteorder = "1.5.0"
