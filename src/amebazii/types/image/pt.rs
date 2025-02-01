@@ -205,7 +205,6 @@ impl Record {
     pub fn set_hash_key(&mut self, key: DataType<32>) {
         self.hash_key = key;
     }
-
 }
 
 impl FromStream for Record {
@@ -469,7 +468,7 @@ impl FromStream for PartTab {
         read_padding!(reader, 1);
         self.key_exp_op = KeyExportOp::try_from(reader.read_u8()?)?;
 
-        let user_len = reader.read_u32::<LittleEndian>()?;
+        let mut user_len = reader.read_u32::<LittleEndian>()?;
         reader.read_exact(&mut self.user_ext)?;
 
         // Read the partition records (num + 1, including boot record).
@@ -477,10 +476,17 @@ impl FromStream for PartTab {
             self.records.push(from_stream(reader)?);
         }
 
-        // Resize the user binary data to the correct length and read it.
-        self.user_bin.resize(user_len as usize, 0xFF);
-        reader.read_exact(&mut self.user_bin)?;
+        // See #1 for details. Even though we parse the user data here,
+        // we don't verify its length. This causes issues with malformed
+        // partition tables.
+        if user_len > 0x100 {
+            // REVISIT: this length seems to be correct as a fallback mechanism
+            // as it is the maximum length supported by the image tool.
+            user_len = 0x100; // == 256
+        }
 
+        self.user_bin = vec![0xFF; user_len as usize];
+        reader.read_exact(&mut self.user_bin)?;
         Ok(())
     }
 }
@@ -557,16 +563,25 @@ impl FromStream for PartitionTableImage {
         R: std::io::Read + std::io::Seek,
     {
         // Read the components of the partition table image
-        self.keyblock.read_from(reader)?;
-        self.header.read_from(reader)?;
+        self.keyblock
+            .read_from(reader)
+            .map_err(|e| Error::MalformedKeyblock(e.to_string()))?;
+
+        self.header
+            .read_from(reader)
+            .map_err(|e| Error::MalformedImageHeader(e.to_string()))?;
 
         // Save the current position to determine the expected size later
         let start_pos = reader.stream_position()?;
         if self.header.is_encrypt {
             self.pt = EncryptedOr::Encrypted(vec![0x00; self.header.segment_size as usize]);
-            self.pt.read_from(reader)?;
+            self.pt
+                .read_from(reader)
+                .map_err(|e| Error::MalfromedPartTab(e.to_string()))?;
         } else {
-            self.pt = EncryptedOr::Plain(from_stream(reader)?);
+            self.pt = EncryptedOr::Plain(
+                from_stream(reader).map_err(|e| Error::MalfromedPartTab(e.to_string()))?,
+            );
         }
         let current_pos = reader.stream_position()?;
         let target_pos = start_pos + self.header.segment_size as u64;

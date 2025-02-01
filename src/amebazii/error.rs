@@ -1,6 +1,6 @@
 use hex::FromHexError;
 use openssl::error::ErrorStack;
-use std::io;
+use std::{error, io};
 
 #[derive(Debug)]
 pub enum Error {
@@ -13,6 +13,12 @@ pub enum Error {
     NotImplemented(String),
     InvalidState(String),
     SerdeJSONError(serde_json::Error),
+
+    // REVISIT: must be reworked
+    // individual parsing errors
+    MalformedKeyblock(String),
+    MalformedImageHeader(String),
+    MalfromedPartTab(String),
 }
 
 impl From<io::Error> for Error {

@@ -1,6 +1,6 @@
 # AmebaZ2 / AmebaZII
 
-Open Source Implementation of OTA and Flash Generation for the AmebaZ2 SDK in Rust
+Open Source Implementation of OTA and Flash Generation for the AmebaZ2 SDK in Rust (**>=1.81.0**)
 
 > [!CAUTION]
 > This repository is an unofficial implementation based on reverse engineering of the official SDK and previous work from [ltchiptool](https://github.com/libretiny-eu/ltchiptool).
