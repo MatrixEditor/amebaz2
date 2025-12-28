@@ -38,7 +38,7 @@
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{
-    io::{self, Cursor},
+    io::{self, Cursor, Write},
     vec,
 };
 
@@ -470,8 +470,12 @@ impl OTAImage {
     ///
     /// # Returns:
     /// - A reference to the public key at the specified index, if it exists.
-    pub fn get_public_key(&self, index: u8) -> DataRefType<32> {
+    pub fn get_public_key(&self, index: u8) -> DataRefType<'_, 32> {
         return self.public_keys[index as usize].as_ref();
+    }
+
+    pub fn get_public_keys(&self) -> &[DataType<32>; 5] {
+        &self.public_keys
     }
 }
 
@@ -500,6 +504,58 @@ impl OTAImage {
                 if let Some(algo) = &fst.hash_algo {
                     let mut writer = Cursor::new(&mut buffer);
                     subimage.header.write_to(&mut writer)?;
+                    return algo.compute_hash(&buffer, key);
+                } else {
+                    return Err(Error::NotImplemented(
+                        "OTAImage::build_ota_signature: subimage[0].fst.hash_algo is None"
+                            .to_string(),
+                    ));
+                }
+            }
+            return Err(Error::NotImplemented(
+                "OTAImage::build_ota_signature: subimage[0].fst is encrypted".to_string(),
+            ));
+        }
+
+        Err(Error::NotImplemented(
+            "OTAImage::build_ota_signature: subimage[0] not found".to_string(),
+        ))
+    }
+
+    pub fn build_first_signature(
+        &self,
+        key: Option<&[u8]>,
+    ) -> Result<Vec<u8>, crate::error::Error> {
+        // Hash: calculated with Encrypted FW image if image encryption is on
+        // The 1st sub-image
+        //  From OTA Signature to the last image section, including all padding bytes
+        let ota_signature = self.build_ota_signature(key)?;
+        if let Some(subimage) = self.get_subimage(0) {
+            if let EncryptedOr::Plain(fst) = &subimage.fst {
+                if let Some(algo) = &fst.hash_algo {
+                    // OTA signature + public keys
+                    let segment_size = subimage.build_segment_size() as usize;
+                    let mut buffer = vec![
+                        0u8;
+                        ImageHeader::binary_size()
+                            + segment_size as usize
+                            + 224
+                    ];
+                    let mut writer = Cursor::new(&mut buffer);
+
+                    writer.write_all(&ota_signature)?;
+                    writer.write_all(self.keyblock.get_hash_pubkey())?;
+                    for pubkey in &self.public_keys {
+                        match pubkey {
+                            Some(raw_key) => writer.write_all(raw_key)?,
+                            None => writer.write_all(&[0xFF; 32])?,
+                        };
+                    }
+                    // signature does not include the hash itself
+                    subimage.header.write_to(&mut writer)?;
+                    subimage.fst.write_to(&mut writer)?;
+                    subimage.sections.write_to(&mut writer)?;
+                    // build hash without existing subimage hash
                     return algo.compute_hash(&buffer, key);
                 } else {
                     return Err(Error::NotImplemented(

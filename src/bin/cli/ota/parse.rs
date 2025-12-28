@@ -102,7 +102,7 @@ fn dump_ota_image(
 
     println!("{}\n", "=".repeat(100));
     let mut offset = 224;
-    for subimage in ota_image.get_subimages() {
+    for (idx, subimage) in ota_image.get_subimages().iter().enumerate() {
         println!(
             "{} {} {}",
             "-".repeat(45),
@@ -110,7 +110,7 @@ fn dump_ota_image(
             "-".repeat(45)
         );
 
-        dump_subimage(subimage, fp, offset)?;
+        dump_subimage(idx, subimage, fp, offset)?;
         println!("{}\n", "-".repeat(100));
 
         if let Some(next_offset) = subimage.header.next_offset {
@@ -124,6 +124,7 @@ fn dump_ota_image(
 }
 
 fn dump_subimage(
+    idx: usize,
     subimage: &SubImage,
     fp: &mut std::fs::File,
     offset: u64,

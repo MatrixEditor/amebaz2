@@ -11,6 +11,7 @@ mod headings {
 mod parttab;
 mod sysdata;
 
+/// Modify partition tables
 #[derive(Parser)]
 #[clap(verbatim_doc_comment)]
 #[command(arg_required_else_help = true)]

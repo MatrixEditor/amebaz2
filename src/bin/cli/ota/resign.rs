@@ -1,4 +1,4 @@
-use amebazii::types::key_from_hex;
+use amebazii::types::{AsImage, key_from_hex};
 use colored::Colorize;
 use openssl::memcmp::eq;
 use std::io::Read;
@@ -47,16 +47,24 @@ pub fn re_sign(cli: &Cli, options: &ReSignOptions) -> Result<(), amebazii::error
             HashAlgo::Sha256
         };
 
+        let first_signature = ota.build_first_signature(Some(&hash_key))?;
         for (idx, subimage) in ota.get_subimages_mut().iter_mut().enumerate() {
             if let EncryptedOr::Plain(fst) = &mut subimage.fst {
                 if !options.same_algo {
                     fst.hash_algo = Some(algo);
                 }
             }
-            let old_signature = subimage.get_hash().clone();
-            set_default_signature(subimage, Some(&hash_key))?;
+            let old_signature = subimage.get_hash().to_vec();
+            let new_signature;
+            if idx == 0 {
+                // first subimage differs
+                new_signature = first_signature.clone();
+                subimage.set_signature(&first_signature);
+            } else {
+                set_default_signature(subimage, Some(&hash_key))?;
+                new_signature = subimage.get_hash().to_vec();
+            }
 
-            let new_signature = subimage.get_hash().clone();
             if old_signature != new_signature {
                 println!("[{}] Subimage: {:?}", idx, subimage.header.img_type);
                 println!(" - Old signature: {}", hex::encode(old_signature));
