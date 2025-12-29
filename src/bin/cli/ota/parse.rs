@@ -124,7 +124,7 @@ fn dump_ota_image(
 }
 
 fn dump_subimage(
-    idx: usize,
+    _idx: usize,
     subimage: &SubImage,
     fp: &mut std::fs::File,
     offset: u64,

@@ -399,7 +399,7 @@ impl SystemData {
     ///
     /// # Returns:
     /// - A reference to the Bluetooth parameter data (if available).
-    pub fn get_bt_paramdata(&self) -> DataRefType<32> {
+    pub fn get_bt_paramdata(&self) -> DataRefType<'_, 32> {
         self.bt_parameter_data.as_ref()
     }
 
@@ -407,7 +407,7 @@ impl SystemData {
     ///
     /// # Returns:
     /// - A reference to the SPI calibration data (if available).
-    pub fn get_spic_calibcfg(&self) -> DataRefType<48> {
+    pub fn get_spic_calibcfg(&self) -> DataRefType<'_, 48> {
         self.spic_calibcfg.as_ref()
     }
 

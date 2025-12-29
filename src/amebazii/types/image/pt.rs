@@ -193,7 +193,7 @@ impl Record {
     }
 
     /// Returns a reference to the `hash_key`.
-    pub fn get_hash_key(&self) -> DataRefType<32> {
+    pub fn get_hash_key(&self) -> DataRefType<'_, 32> {
         self.hash_key.as_ref()
     }
 

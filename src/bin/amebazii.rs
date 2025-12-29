@@ -17,6 +17,7 @@ fn cli_entry() -> Result<(), Error> {
         Some(Commands::Flash { subcommand }) => cli::flash::main(&cli, subcommand.as_ref())?,
         Some(Commands::Build { subcommand }) => cli::builder::main(&cli, subcommand.as_ref())?,
         Some(Commands::Mod { subcommand }) => cli::modify::main(&cli, subcommand.as_ref())?,
+        Some(Commands::NVDM { subcommand }) => cli::nvdm::main(&cli, subcommand.as_ref())?,
     }
 
     Ok(())

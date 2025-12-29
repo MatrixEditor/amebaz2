@@ -1,6 +1,7 @@
 use hex::FromHexError;
 use openssl::error::ErrorStack;
-use std::{error, io};
+use std::{io};
+use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub enum Error {
@@ -9,10 +10,12 @@ pub enum Error {
     InvalidEnumValue(String),
     IOError(io::Error),
     OpenSSLError(ErrorStack),
+    Utf8Error(FromUtf8Error),
     UnsupportedHashAlgo(u8),
     NotImplemented(String),
     InvalidState(String),
     SerdeJSONError(serde_json::Error),
+    UnknownNVDMType(String),
 
     // REVISIT: must be reworked
     // individual parsing errors
@@ -42,6 +45,12 @@ impl From<serde_json::Error> for Error {
 impl From<FromHexError> for Error {
     fn from(err: FromHexError) -> Self {
         Error::InvalidState(err.to_string())
+    }
+}
+
+impl From<FromUtf8Error> for Error {
+    fn from(value: FromUtf8Error) -> Self {
+        Error::Utf8Error(value)
     }
 }
 

@@ -6,6 +6,7 @@ pub mod flash;
 pub mod modify;
 pub mod ota;
 pub mod util;
+pub mod nvdm;
 
 mod headings {
     pub const PARTTAB_OPTIONS: &str = "PartitionTable Options";
@@ -148,6 +149,12 @@ pub enum Commands {
         #[command(subcommand)]
         subcommand: Option<ModSubCommand>,
     },
+
+    #[command(arg_required_else_help = true)]
+    NVDM {
+        #[command(subcommand)]
+        subcommand: Option<NvdmSubCommand>,
+    }
 }
 
 /// Flash-related operations.
@@ -265,6 +272,17 @@ pub enum ModSubCommand {
     Sysdata {
         #[command(flatten)]
         options: modify::ModSysctrlOptions,
+    },
+}
+
+/// NVDM parser/viewer
+#[derive(Parser)]
+#[clap(verbatim_doc_comment)]
+pub enum NvdmSubCommand {
+    #[command(arg_required_else_help = true)]
+    View {
+        #[command(flatten)]
+        options: nvdm::ParseOptions,
     },
 }
 

@@ -120,7 +120,7 @@ impl FST {
     ///     // Handle valid cipher key
     /// }
     /// ```
-    pub fn get_cipher_key(&self) -> DataRefType<32> {
+    pub fn get_cipher_key(&self) -> DataRefType<'_, 32> {
         return self.cipher_key.as_ref();
     }
 
@@ -128,7 +128,7 @@ impl FST {
     ///
     /// # Returns:
     /// An `Option` containing a reference to the 16-byte cipher IV.
-    pub fn get_cipher_iv(&self) -> DataRefType<16> {
+    pub fn get_cipher_iv(&self) -> DataRefType<'_, 16> {
         return self.cipher_iv.as_ref();
     }
 

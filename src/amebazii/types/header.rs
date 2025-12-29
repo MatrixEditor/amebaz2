@@ -352,7 +352,7 @@ impl ImageHeader {
     ///
     /// # Returns
     /// A reference to the `user_key1` array (32 bytes).
-    pub fn get_user_key1(&self) -> DataRefType<32> {
+    pub fn get_user_key1(&self) -> DataRefType<'_, 32> {
         self.user_key1.as_ref()
     }
 
@@ -360,7 +360,7 @@ impl ImageHeader {
     ///
     /// # Returns
     /// A reference to the `user_key2` array (32 bytes).
-    pub fn get_user_key2(&self) -> DataRefType<32> {
+    pub fn get_user_key2(&self) -> DataRefType<'_, 32> {
         self.user_key2.as_ref()
     }
 
@@ -622,12 +622,12 @@ impl SectionHeader {
     }
 
     /// Retrieves the XIP key.
-    pub fn get_xip_key(&self) -> DataRefType<16> {
+    pub fn get_xip_key(&self) -> DataRefType<'_, 16> {
         self.xip_key.as_ref()
     }
 
     /// Retrieves the XIP IV.
-    pub fn get_xip_iv(&self) -> DataRefType<16> {
+    pub fn get_xip_iv(&self) -> DataRefType<'_, 16> {
         self.xip_iv.as_ref()
     }
 

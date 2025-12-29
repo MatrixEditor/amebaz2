@@ -20,6 +20,9 @@ pub use image::*; // revisit
 pub mod section;
 pub use section::Section;
 
+pub mod nvdm;
+pub use nvdm::*;
+
 pub mod sysctrl;
 pub use sysctrl::{FlashInfo, ForceOldImage, SpiConfig, SystemData};
 
