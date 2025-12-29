@@ -120,7 +120,7 @@
 <a href=#120 id=120 data-nosnippet>120</a>    ///     // Handle valid cipher key
 <a href=#121 id=121 data-nosnippet>121</a>    /// }
 <a href=#122 id=122 data-nosnippet>122</a>    /// ```
-<a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">pub fn </span>get_cipher_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="number">32</span>&gt; {
+<a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">pub fn </span>get_cipher_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="lifetime">'_</span>, <span class="number">32</span>&gt; {
 <a href=#124 id=124 data-nosnippet>124</a>        <span class="kw">return </span><span class="self">self</span>.cipher_key.as_ref();
 <a href=#125 id=125 data-nosnippet>125</a>    }
 <a href=#126 id=126 data-nosnippet>126</a>
@@ -128,7 +128,7 @@
 <a href=#128 id=128 data-nosnippet>128</a>    ///
 <a href=#129 id=129 data-nosnippet>129</a>    /// # Returns:
 <a href=#130 id=130 data-nosnippet>130</a>    /// An `Option` containing a reference to the 16-byte cipher IV.
-<a href=#131 id=131 data-nosnippet>131</a>    </span><span class="kw">pub fn </span>get_cipher_iv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="number">16</span>&gt; {
+<a href=#131 id=131 data-nosnippet>131</a>    </span><span class="kw">pub fn </span>get_cipher_iv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="lifetime">'_</span>, <span class="number">16</span>&gt; {
 <a href=#132 id=132 data-nosnippet>132</a>        <span class="kw">return </span><span class="self">self</span>.cipher_iv.as_ref();
 <a href=#133 id=133 data-nosnippet>133</a>    }
 <a href=#134 id=134 data-nosnippet>134</a>

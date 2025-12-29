@@ -352,7 +352,7 @@
 <a href=#352 id=352 data-nosnippet>352</a>    ///
 <a href=#353 id=353 data-nosnippet>353</a>    /// # Returns
 <a href=#354 id=354 data-nosnippet>354</a>    /// A reference to the `user_key1` array (32 bytes).
-<a href=#355 id=355 data-nosnippet>355</a>    </span><span class="kw">pub fn </span>get_user_key1(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="number">32</span>&gt; {
+<a href=#355 id=355 data-nosnippet>355</a>    </span><span class="kw">pub fn </span>get_user_key1(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="lifetime">'_</span>, <span class="number">32</span>&gt; {
 <a href=#356 id=356 data-nosnippet>356</a>        <span class="self">self</span>.user_key1.as_ref()
 <a href=#357 id=357 data-nosnippet>357</a>    }
 <a href=#358 id=358 data-nosnippet>358</a>
@@ -360,7 +360,7 @@
 <a href=#360 id=360 data-nosnippet>360</a>    ///
 <a href=#361 id=361 data-nosnippet>361</a>    /// # Returns
 <a href=#362 id=362 data-nosnippet>362</a>    /// A reference to the `user_key2` array (32 bytes).
-<a href=#363 id=363 data-nosnippet>363</a>    </span><span class="kw">pub fn </span>get_user_key2(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="number">32</span>&gt; {
+<a href=#363 id=363 data-nosnippet>363</a>    </span><span class="kw">pub fn </span>get_user_key2(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="lifetime">'_</span>, <span class="number">32</span>&gt; {
 <a href=#364 id=364 data-nosnippet>364</a>        <span class="self">self</span>.user_key2.as_ref()
 <a href=#365 id=365 data-nosnippet>365</a>    }
 <a href=#366 id=366 data-nosnippet>366</a>
@@ -622,12 +622,12 @@
 <a href=#622 id=622 data-nosnippet>622</a>    }
 <a href=#623 id=623 data-nosnippet>623</a>
 <a href=#624 id=624 data-nosnippet>624</a>    <span class="doccomment">/// Retrieves the XIP key.
-<a href=#625 id=625 data-nosnippet>625</a>    </span><span class="kw">pub fn </span>get_xip_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="number">16</span>&gt; {
+<a href=#625 id=625 data-nosnippet>625</a>    </span><span class="kw">pub fn </span>get_xip_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="lifetime">'_</span>, <span class="number">16</span>&gt; {
 <a href=#626 id=626 data-nosnippet>626</a>        <span class="self">self</span>.xip_key.as_ref()
 <a href=#627 id=627 data-nosnippet>627</a>    }
 <a href=#628 id=628 data-nosnippet>628</a>
 <a href=#629 id=629 data-nosnippet>629</a>    <span class="doccomment">/// Retrieves the XIP IV.
-<a href=#630 id=630 data-nosnippet>630</a>    </span><span class="kw">pub fn </span>get_xip_iv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="number">16</span>&gt; {
+<a href=#630 id=630 data-nosnippet>630</a>    </span><span class="kw">pub fn </span>get_xip_iv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="lifetime">'_</span>, <span class="number">16</span>&gt; {
 <a href=#631 id=631 data-nosnippet>631</a>        <span class="self">self</span>.xip_iv.as_ref()
 <a href=#632 id=632 data-nosnippet>632</a>    }
 <a href=#633 id=633 data-nosnippet>633</a>

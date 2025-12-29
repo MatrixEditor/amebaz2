@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["from_stream","key_from_hex","key_to_hex","to_bytes","to_bytes_with_capacity","transfer_to"],"mod":["enums","flash","fst","header","image","section","sysctrl"],"trait":["BinarySize","FromStream","ToStream"],"type":["DataRefType","DataType"]};
+window.SIDEBAR_ITEMS = {"fn":["from_stream","key_from_hex","key_to_hex","to_bytes","to_bytes_with_capacity","transfer_to"],"mod":["enums","flash","fst","header","image","nvdm","section","sysctrl"],"trait":["BinarySize","FromStream","ToStream"],"type":["DataRefType","DataType"]};

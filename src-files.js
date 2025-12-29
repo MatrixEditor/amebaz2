@@ -1,2 +1,2 @@
-createSrcSidebar('[["amebazii",["",[["conf",[],["mod.rs","pt.rs","sysctrl.rs"]],["doc",[],["mod.rs"]],["types",[["image",[],["boot.rs","mod.rs","ota.rs","pt.rs"]]],["enums.rs","flash.rs","fst.rs","header.rs","mod.rs","section.rs","sysctrl.rs"]]],["error.rs","keys.rs","lib.rs","map.rs","util.rs"]]]]');
-//{"start":19,"fragment_lengths":[279]}
+createSrcSidebar('[["amebazii",["",[["conf",[],["mod.rs","pt.rs","sysctrl.rs"]],["doc",[],["mod.rs"]],["types",[["image",[],["boot.rs","mod.rs","ota.rs","pt.rs"]]],["enums.rs","flash.rs","fst.rs","header.rs","mod.rs","nvdm.rs","section.rs","sysctrl.rs"]]],["error.rs","keys.rs","lib.rs","map.rs","util.rs"]]]]');
+//{"start":19,"fragment_lengths":[289]}

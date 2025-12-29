@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NVDM_PORT_PEB_SIZE","PEB_MAGIC"],"enum":["DataItemStatus","NvdmDataItemType","PebStatus"],"struct":["DataItem","DataItemHeader","NVDM","PebHeader"]};

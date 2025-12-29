@@ -399,7 +399,7 @@
 <a href=#399 id=399 data-nosnippet>399</a>    ///
 <a href=#400 id=400 data-nosnippet>400</a>    /// # Returns:
 <a href=#401 id=401 data-nosnippet>401</a>    /// - A reference to the Bluetooth parameter data (if available).
-<a href=#402 id=402 data-nosnippet>402</a>    </span><span class="kw">pub fn </span>get_bt_paramdata(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="number">32</span>&gt; {
+<a href=#402 id=402 data-nosnippet>402</a>    </span><span class="kw">pub fn </span>get_bt_paramdata(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="lifetime">'_</span>, <span class="number">32</span>&gt; {
 <a href=#403 id=403 data-nosnippet>403</a>        <span class="self">self</span>.bt_parameter_data.as_ref()
 <a href=#404 id=404 data-nosnippet>404</a>    }
 <a href=#405 id=405 data-nosnippet>405</a>
@@ -407,7 +407,7 @@
 <a href=#407 id=407 data-nosnippet>407</a>    ///
 <a href=#408 id=408 data-nosnippet>408</a>    /// # Returns:
 <a href=#409 id=409 data-nosnippet>409</a>    /// - A reference to the SPI calibration data (if available).
-<a href=#410 id=410 data-nosnippet>410</a>    </span><span class="kw">pub fn </span>get_spic_calibcfg(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="number">48</span>&gt; {
+<a href=#410 id=410 data-nosnippet>410</a>    </span><span class="kw">pub fn </span>get_spic_calibcfg(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DataRefType&lt;<span class="lifetime">'_</span>, <span class="number">48</span>&gt; {
 <a href=#411 id=411 data-nosnippet>411</a>        <span class="self">self</span>.spic_calibcfg.as_ref()
 <a href=#412 id=412 data-nosnippet>412</a>    }
 <a href=#413 id=413 data-nosnippet>413</a>
